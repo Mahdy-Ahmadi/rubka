@@ -331,10 +331,153 @@ def callback_handler(bot: Robot, message: Message):
 
 ---
 
+---
+
+## 📤 مثال کاربردی کامل
+
+```python
+from rubka import Robot
+from rubka.keypad import ChatKeypadBuilder
+from rubka.button import InlineBuilder
+from rubka.context import Message
+
+chat_keypad = ChatKeypadBuilder().row(
+    ChatKeypadBuilder().button(id="btn_female", text="زن"),
+    ChatKeypadBuilder().button(id="btn_male", text="مرد")
+).build()
+
+inline_keypad = (
+    InlineBuilder()
+    .row(
+        InlineBuilder().button_simple("btn_bets", "button1"),
+        InlineBuilder().button_simple("btn_rps", "button2")
+    )
+    .row(
+        InlineBuilder().button_simple("btn_chatid", "butthon3")
+    )
+    .build()
+)
+
+bot = Robot("توکن شما")
+
+@bot.on_message()
+def handler(bot: Robot, message: Message):
+    message.reply_image(
+        path="https://s6.uupload.ir/files/chatgpt_image_jul_20,_2025,_10_22_47_pm_oiql.png",
+        text="📷 عکس ریپلای شده دکمه شیشه ای",
+        inline_keypad=inline_keypad
+    )
+
+    message.reply_image(
+        path="https://s6.uupload.ir/files/chatgpt_image_jul_20,_2025,_10_22_47_pm_oiql.png",
+        text="📷 عکس ریپلای شده دکمه کیبوردی",
+        chat_keypad=chat_keypad,
+        chat_keypad_type="New"
+    )
+
+@bot.on_callback()
+def callback_handler(bot: Robot, message: Message):
+    data = message.aux_data.button_id
+    if data == "btn_male":
+        message.reply("سلام مرد")
+    elif data == "btn_female":
+        message.reply("سلام زن")
+    else:
+        message.reply(f"دکمه ناشناخته: {data}")
+
+bot.run()
+```
+
+---
+
+## 🧱 مستندات کلاس `InlineBuilder`
+
+کلاس `InlineBuilder` برای ساخت دکمه‌های اینلاین استفاده می‌شود که در پیام‌های ربات قابل استفاده هستند.
+
+### ✅ روش استفاده
+
+```python
+from rubka.button import InlineBuilder
+
+builder = InlineBuilder()
+inline_keypad = builder.row(
+    builder.button_simple("btn_1", "دکمه ۱"),
+    builder.button_simple("btn_2", "دکمه ۲")
+).build()
+```
+
+### 📚 دکمه‌های پشتیبانی‌شده
+
+- `button_simple(id, text)` – دکمه ساده
+- `button_payment(id, title, amount, description=None)` – پرداخت
+- `button_calendar(id, title, type_, ...)` – انتخاب تاریخ
+- `button_location(id, type_, image_url, ...)` – ارسال موقعیت مکانی
+- `button_string_picker(...)` – انتخاب گزینه از لیست
+- `button_number_picker(...)` – انتخاب عدد از بازه
+- `button_textbox(...)` – فیلد ورود متنی
+- `button_selection(...)` – انتخاب چندگزینه‌ای پیشرفته
+- `button_camera_image(...)`, `button_camera_video(...)`
+- `button_gallery_image(...)`, `button_gallery_video(...)`
+- `button_file(...)`, `button_audio(...)`, `button_record_audio(...)`
+- `button_my_phone_number(...)`, `button_my_location(...)`
+- `button_ask_my_phone_number(...)`, `button_ask_location(...)`
+- `button_barcode(...)`
+- `button_link(id, title, url)` – لینک خارجی
+
+### 🧱 ساخت نهایی
+
+```python
+keypad = builder.build()
+```
+
+خروجی به صورت دیکشنری با کلید `rows` خواهد بود که می‌توانید در متد `send_message` یا `reply_*` استفاده کنید.
+
+---
+
+## ⌨️ مستندات کلاس `ChatKeypadBuilder`
+
+کلاس `ChatKeypadBuilder` برای ساخت صفحه‌کلید چتی (chat keypad) استفاده می‌شود.
+
+### 🛠 روش استفاده
+
+```python
+from rubka.keypad import ChatKeypadBuilder
+
+keypad = ChatKeypadBuilder().row(
+    ChatKeypadBuilder().button("btn_1", "دکمه ۱"),
+    ChatKeypadBuilder().button("btn_2", "دکمه ۲")
+).build()
+```
+
+### 📋 متدها
+
+- `button(id, text, type="Simple")` – ساخت یک دکمه ساده یا از نوع خاص
+- `row(*buttons)` – افزودن یک ردیف به کیبورد (دکمه‌ها باید با `button()` ساخته شوند)
+- `build(resize_keyboard=True, on_time_keyboard=False)` – ساخت خروجی نهایی برای ارسال به کاربر
+
+### 📦 خروجی `build()`
+
+```json
+{
+  "rows": [
+    {"buttons": [
+      {"id": "btn_1", "type": "Simple", "button_text": "دکمه ۱"},
+      {"id": "btn_2", "type": "Simple", "button_text": "دکمه ۲"}
+    ]}
+  ],
+  "resize_keyboard": true,
+  "on_time_keyboard": false
+}
+```
+
+---
+
 ## 👨‍💻 توسعه‌دهنده
 
 این مستندات برای کتابخانه `rubka` توسط **Codern Team** تهیه شده است.
 
 📎 لینک: [https://api-free.ir](https://api-free.ir)
+
+
 
 
