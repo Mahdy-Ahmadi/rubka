@@ -1,284 +1,191 @@
+# 📚 Rubka Bot Python Library Documentation
 
-# rubka
+## 🧠 Introduction
+`rubka` is a Python library to interact with the [Rubika Bot API](https://rubika.ir/). This library helps you create Telegram-like bots with support for messages, inline buttons, chat keypads, and callback handling.
 
-A Python library for interacting with the Rubika Bot API using the Robot class.
+---
 
-## Overview
-rubka is a powerful and easy-to-use Python SDK designed to simplify building bots for the Rubika platform.
-It supports sending messages, editing, polls, locations, contacts, keyboards, and managing bot commands with a clean and modern interface.
-
-## Installation
+## ⚙️ Installation
 
 ```bash
 pip install rubka
 ```
 
-Or install from source:
+If `importlib.metadata` is not available, it installs `importlib-metadata` automatically.
 
-```bash
-git clone https://github.com/Mahdy-Ahmadi/rubka.git
-cd rubka
-pip install .
-```
+---
 
-## Quick Start
+## 🚀 Getting Started
 
 ```python
-from rubka import Robot, on_message
+from rubka import Robot
+from rubka.context import Message
 
-bot = Robot(token="YOUR_BOT_TOKEN")
+bot = Robot(token="YOUR_TOKEN_HERE")
 
-@on_message
-def handle_message(bot, chat_id, message_id, text, sender_id):
-    if text == "/start":
-        bot.send_message(chat_id, "Hello! Welcome to rubka.")
+@bot.on_message(commands=["start"])
+def start(bot: Robot, message: Message):
+    message.reply("سلام! خوش آمدید!")
 
-updates = bot.get_updates(limit=10)
-for update in updates.get("updates", []):
-    handle_message(update, bot)
+bot.run()
 ```
 
-## API Reference
+---
 
-### Class: Robot
+## 📬 Handling Messages
 
-The main class to interact with Rubika Bot API.
+You can handle incoming text messages using `@bot.on_message()`:
 
-#### Methods:
+```python
+@bot.on_message(commands=["hello"])
+def greet(bot: Robot, message: Message):
+    message.reply("سلام کاربر عزیز 👋")
+```
 
-- **get_me()**
+You can also add filters.
 
-  Retrieve information about the bot.
+---
 
-  Returns: `dict` — Bot information object.
+## 🎮 Handling Callback Buttons
 
-  Example:
+```python
+from rubka.keypad import ChatKeypadBuilder
 
-  ```python
-  info = bot.get_me()
-  print(info)
-  ```
+@bot.on_message(commands=["gender"])
+def gender(bot: Robot, message: Message):
+    keypad = ChatKeypadBuilder().row(
+        ChatKeypadBuilder().button(id="male", text="👨 مرد"),
+        ChatKeypadBuilder().button(id="female", text="👩 زن")
+    ).build()
+    message.reply_keypad("جنسیت خود را انتخاب کنید:", keypad)
 
-- **send_message(chat_id: str, text: str, chat_keypad: dict = None, inline_keypad: dict = None, disable_notification: bool = False, reply_to_message_id: str = None, chat_keypad_type: str = None)**
+@bot.on_callback("male")
+def on_male(bot: Robot, message: Message):
+    message.reply("شما مرد هستید")
 
-  Send a message to a chat with optional keypads.
+@bot.on_callback("female")
+def on_female(bot: Robot, message: Message):
+    message.reply("شما زن هستید")
+```
 
-  Parameters:
+---
 
-  - `chat_id` — Chat identifier.
-  - `text` — Message text.
-  - `chat_keypad` — (Optional) Custom keypad attached to chat.
-  - `inline_keypad` — (Optional) Inline keypad attached to message.
-  - `disable_notification` — (Optional) Disable notification for the message (default False).
-  - `reply_to_message_id` — (Optional) Message ID to reply to.
-  - `chat_keypad_type` — (Optional) Type of keypad ("New" or "Removed").
+## 🔘 Inline Button Builder
 
-  Returns: `dict` — Response including the sent message ID.
+```python
+from rubka.button import InlineBuilder
 
-  Example:
+builder = InlineBuilder().row(
+    InlineBuilder().button_simple(id="info", text="اطلاعات")
+).build()
+```
 
-  ```python
-  bot.send_message(
-      chat_id="12345",
-      text="Welcome!",
-      inline_keypad={
-          "rows": [
-              {
-                  "buttons": [
-                      {"id": "100", "type": "Simple", "button_text": "Add Account"}
-                  ]
-              }
-          ]
-      }
-  )
-  ```
+---
 
-- **send_poll(chat_id: str, question: str, options: list[str])**
+## 🔄 Check if User Joined a Channel
 
-  Send a poll to a chat.
+```python
+channel_guid = "c0xABCDEF..."
 
-  Parameters:
+@bot.on_message(commands=["check"])
+def check(bot: Robot, message: Message):
+    if bot.check_join(channel_guid, message.chat_id):
+        message.reply("✅ شما عضو کانال هستید")
+    else:
+        message.reply("❌ لطفاً ابتدا در کانال عضو شوید")
+```
 
-  - `chat_id` — Chat identifier.
-  - `question` — Poll question text.
-  - `options` — List of poll options.
+---
 
-  Returns: `dict` — Response with poll message ID.
+## 💬 Utility Methods
 
-  Example:
+| Method | Description |
+|--------|-------------|
+| `get_chat(chat_id)` | دریافت اطلاعات چت |
+| `get_name(chat_id)` | دریافت نام کاربر |
+| `get_username(chat_id)` | دریافت نام‌کاربری |
+| `send_message(...)` | ارسال پیام متنی |
+| `edit_message_text(...)` | ویرایش پیام |
+| `delete_message(...)` | حذف پیام |
+| `send_location(...)` | ارسال موقعیت مکانی |
+| `send_poll(...)` | ارسال نظرسنجی |
+| `send_contact(...)` | ارسال مخاطب |
+| `forward_message(...)` | فوروارد پیام |
 
-  ```python
-  bot.send_poll(
-      chat_id="12345",
-      question="Do you like this bot?",
-      options=["Yes", "No"]
-  )
-  ```
+---
 
-- **send_location(chat_id: str, latitude: str, longitude: str, disable_notification: bool = False, inline_keypad: dict = None, reply_to_message_id: str = None, chat_keypad_type: str = None)**
+## 🎛 Inline Query Support
 
-  Send a location to a chat.
+```python
+@bot.on_inline_query()
+def inline(bot: Robot, message: InlineMessage):
+    message.answer("نتیجه اینلاین")
+```
 
-  Parameters:
+---
 
-  - `chat_id` — Chat identifier.
-  - `latitude` — Latitude coordinate.
-  - `longitude` — Longitude coordinate.
-  - `disable_notification` — (Optional) Disable notification.
-  - `inline_keypad` — (Optional) Inline keypad.
-  - `reply_to_message_id` — (Optional) Reply message ID.
-  - `chat_keypad_type` — (Optional) Keypad type.
+## 🧱 Button Types
 
-  Returns: `dict` — Response with message ID.
+Supported inline button types include:
 
-- **send_contact(chat_id: str, first_name: str, last_name: str, phone_number: str, chat_keypad: dict = None, disable_notification: bool = False, inline_keypad: dict = None, reply_to_message_id: str = None, chat_keypad_type: str = None)**
+- `Simple`
+- `Payment`
+- `Calendar`
+- `Location`
+- `CameraImage`, `CameraVideo`
+- `GalleryImage`, `GalleryVideo`
+- `File`, `Audio`, `RecordAudio`
+- `MyPhoneNumber`, `MyLocation`
+- `Textbox`, `Barcode`, `Link`
 
-  Send a contact to a chat.
+See `InlineBuilder` for more.
 
-  Parameters:
+---
 
-  - `chat_id` — Chat identifier.
-  - `first_name` — Contact's first name.
-  - `last_name` — Contact's last name.
-  - `phone_number` — Contact's phone number.
+## 🧩 Dynamic Chat Keypad
 
-  Additional optional keypad and notification parameters.
+```python
+builder = ChatKeypadBuilder()
+keypad = builder.row(
+    builder.button(id="play", text="🎮 بازی کن"),
+    builder.button(id="exit", text="❌ خروج")
+).build()
+```
 
-  Returns: `dict` — Response with message ID.
+---
 
-- **get_chat(chat_id: str)**
+## 🧪 Set Commands
 
-  Get information about a chat.
+```python
+bot.set_commands([
+    {"command": "start", "description": "شروع"},
+    {"command": "help", "description": "راهنما"}
+])
+```
 
-  Parameters:
+---
 
-  - `chat_id` — Chat identifier.
+## 🔄 Update Offset Automatically
 
-  Returns: `dict` — Chat info object.
+Bot updates are handled using `get_updates()` and `offset_id` is managed internally.
 
-- **get_updates(offset_id: str = None, limit: int = None)**
+---
 
-  Get recent updates/messages sent to the bot.
+## 🛠 Advanced Features
 
-  Parameters:
+- `update_bot_endpoint()` – تنظیم webhook یا polling
+- `remove_keypad()` – حذف صفحه‌کلید چت
+- `edit_chat_keypad()` – ویرایش یا افزودن صفحه‌کلید چت
 
-  - `offset_id` — (Optional) Start offset for updates.
-  - `limit` — (Optional) Max number of updates to retrieve.
+---
 
-  Returns: `dict` — Updates list.
+## 👨‍💻 Maintainer
 
-- **forward_message(from_chat_id: str, message_id: str, to_chat_id: str, disable_notification: bool = False)**
+Developed with ❤️ by **Codern Team**.
 
-  Forward a message from one chat to another.
+---
 
-  Parameters:
+## 🔗 Links
 
-  - `from_chat_id` — Source chat ID.
-  - `message_id` — Message ID to forward.
-  - `to_chat_id` — Target chat ID.
-  - `disable_notification` — (Optional) Disable notification.
-
-  Returns: `dict` — Response with new message ID.
-
-- **edit_message_text(chat_id: str, message_id: str, text: str)**
-
-  Edit the text of a previously sent message.
-
-  Parameters:
-
-  - `chat_id` — Chat ID.
-  - `message_id` — Message ID to edit.
-  - `text` — New text.
-
-  Returns: `dict` — Response status.
-
-- **edit_inline_keypad(chat_id: str, message_id: str, inline_keypad: dict)**
-
-  Edit the inline keypad of a message.
-
-  Parameters:
-
-  - `chat_id` — Chat ID.
-  - `message_id` — Message ID.
-  - `inline_keypad` — New inline keypad structure.
-
-  Returns: `dict` — Response status.
-
-- **delete_message(chat_id: str, message_id: str)**
-
-  Delete a message in a chat.
-
-  Parameters:
-
-  - `chat_id` — Chat ID.
-  - `message_id` — Message ID.
-
-  Returns: `dict` — Response status.
-
-- **set_commands(bot_commands: list[dict])**
-
-  Set the list of bot commands for the bot menu.
-
-  Parameters:
-
-  - `bot_commands` — List of commands as dictionaries with "command" and "description".
-
-  Returns: `dict` — Response status.
-
-- **update_bot_endpoint(url: str, type: str)**
-
-  Update the bot's webhook or API endpoint URL.
-
-  Parameters:
-
-  - `url` — New URL.
-  - `type` — Type of update endpoint (e.g. "GetSelectionItem").
-
-  Returns: `dict` — Response status.
-
-- **remove_keypad(chat_id: str)**
-
-  Remove keypad from a chat.
-
-  Parameters:
-
-  - `chat_id` — Chat ID.
-
-  Returns: `dict` — Response status.
-
-- **edit_chat_keypad(chat_id: str, chat_keypad: dict)**
-
-  Edit or set a new keypad for a chat.
-
-  Parameters:
-
-  - `chat_id` — Chat ID.
-  - `chat_keypad` — Keypad object.
-
-  Returns: `dict` — Response status.
-
-## Decorators
-
-- **@on_message**
-
-  Decorator for defining a message handler function.
-
-  Automatically parses incoming updates and calls your handler with parameters: `bot, chat_id, message_id, text, sender_id`.
-
-  Usage:
-
-  ```python
-  from rubka import on_message
-
-  @on_message
-  def my_handler(bot, chat_id, message_id, text, sender_id):
-      # your code here
-  ```
-
-## Contributing
-
-Contributions and feedback are welcome! Please submit issues or pull requests on GitHub.
-
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
+- [Rubika API Docs](https://botapi.rubika.ir)
+- [API-Free.ir](https://api-free.ir)
