@@ -535,7 +535,7 @@ def countdown_edit(chat_id, message_id, duration_sec):
 
 ---
 ## نمونه کد ساخته شده
-```
+```python
 from rubka import Robot
 from rubka.context import Message
 from rubka.keypad import ChatKeypadBuilder
@@ -649,7 +649,7 @@ bot.run()
 ```
 
 ##مثال ساده تر
-```
+```python
 from rubka import Robot
 from rubka.context import Message
 from rubka.jobs import Job
@@ -689,7 +689,7 @@ bot.run()
 
 ##نمونه کد ادیت تایم و کرون جاب با اینلاین کیبورد 
 
-```
+```python
 from rubka import Robot
 from rubka.context import Message
 from rubka.keypad import ChatKeypadBuilder
