@@ -472,12 +472,340 @@ keypad = ChatKeypadBuilder().row(
 
 ---
 
-## 👨‍💻 توسعه‌دهنده
+# مستندات پروژه: تایمر پیام در ربات Rubika
 
-این مستندات برای کتابخانه `rubka` توسط **Codern Team** تهیه شده است.
+این پروژه یک ربات بر پایه کتابخانه‌ی `rubka` است که به کاربر امکان می‌دهد با استفاده از کی‌پد، یک تایمر تنظیم کرده و پس از پایان تایمر، پیامی برای او ارسال شود. تمرکز اصلی این مستند، بر روی کلاس `Job` است که برای زمان‌بندی اجرای دستورات استفاده شده است.
 
-📎 لینک: [https://api-free.ir](https://api-free.ir)
+## ساختار کلی پروژه
+- استفاده از کتابخانه `rubka` برای ارتباط با Rubika Bot API
+- تعریف یک کی‌پد با گزینه‌های تاخیر زمانی مختلف (۱۰ الی ۱۵۰ ثانیه)
+- استفاده از کلاس `Job` برای مدیریت اجرای زمان‌بندی‌شده یک تابع
+- نمایش شمارش معکوس با به‌روزرسانی مداوم پیام
 
+---
 
+## کلاس `Job` چیست؟
+کلاس `Job` در فایل `rubka.jobs` تعریف شده و هدف آن اجرای یک تابع خاص پس از گذشت یک بازه زمانی مشخص است.
 
+### نحوه استفاده:
+```python
+from rubka.jobs import Job
+
+job = Job(delay_in_seconds, callback_function)
+```
+
+### پارامترها:
+| پارامتر | نوع | توضیح |
+|--------|-----|-------|
+| `delay_in_seconds` | `int` | مدت زمانی که باید قبل از اجرای تابع منتظر بماند |
+| `callback_function` | `function` | تابعی که بعد از پایان زمان باید اجرا شود |
+
+### ویژگی‌ها:
+- اجرای غیرهمزمان (با استفاده از Thread داخلی)
+- مناسب برای سناریوهایی مانند تایمرها، یادآورها و اعلان‌های زمان‌بندی شده
+
+---
+
+## مثال از استفاده در پروژه:
+
+```python
+def delayed_send():
+    if user_id not in active_jobs:
+        return
+    bot.send_message(
+        message.chat_id,
+        f"✅ کاربر {user_id} : زمان {seconds} ثانیه گذشت و دستور اجرا شد! ⏰"
+    )
+    active_jobs.pop(user_id, None)
+
+job = Job(seconds, delayed_send)
+active_jobs[user_id] = job
+```
+
+در این مثال، پس از انتخاب تاخیر زمانی توسط کاربر، یک شی از کلاس `Job` ساخته می‌شود که تابع `delayed_send` را پس از `seconds` ثانیه اجرا می‌کند.
+
+---
+
+## تابع `countdown_edit`
+این تابع تایمر فعال را به صورت زنده باقیمانده زمان را به‌روزرسانی می‌کند:
+```python
+def countdown_edit(chat_id, message_id, duration_sec):
+    # اجرای یک Thread برای به‌روزرسانی پیام در هر ثانیه
+```
+
+---
+## نمونه کد ساخته شده
+```
+from rubka import Robot
+from rubka.context import Message
+from rubka.keypad import ChatKeypadBuilder
+from rubka.jobs import Job
+from datetime import datetime, timedelta
+import threading
+import time
+
+bot = Robot("token")
+
+active_jobs = {}
+
+def build_delay_keypad():
+    delays = [10, 20, 30, 40, 50, 60, 75, 90, 120, 150]
+    builder = ChatKeypadBuilder()
+    buttons = []
+    for sec in delays:
+        buttons.append(builder.button(id=f"delay_{sec}", text=f"⏳ بعد از {sec} ثانیه"))
+    buttons.append(builder.button(id="cancel", text="❌ انصراف"))
+    
+    rows = [buttons[i:i+3] for i in range(0, len(buttons), 3)]
+    keypad = ChatKeypadBuilder()
+    for row in rows:
+        keypad.row(*row)
+    return keypad.build()
+
+def countdown_edit(chat_id: str, message_id: str, duration_sec: int):
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=duration_sec)
+
+    def run():
+        while True:
+            now = datetime.now()
+            if now >= end_time:
+                try:
+                    bot.edit_message_text(chat_id, message_id, "⏰ زمان تمام شد!")
+                except Exception as e:
+                    print("خطا در ویرایش پیام:", e)
+                break
+
+            remaining = end_time - now
+            text = (
+                f"⏳ تایمر فعال است...\n"
+                f"🕰 شروع: {start_time.strftime('%H:%M:%S')}\n"
+                f"⏲ پایان: {end_time.strftime('%H:%M:%S')}\n"
+                f"⌛ باقی‌مانده: {str(remaining).split('.')[0]}"
+            )
+            try:
+                bot.edit_message_text(chat_id, message_id, text)
+            except Exception as e:
+                print("خطا در ویرایش پیام:", e)
+            time.sleep(1)
+
+    threading.Thread(target=run, daemon=True).start()
+
+@bot.on_message(commands=["start"])
+def start_handler(bot: Robot, message: Message):
+    keypad = build_delay_keypad()
+    message.reply_keypad(
+        "سلام 👋\n"
+        "یک زمان برای ارسال پیام انتخاب کنید:\n"
+        "📅 تاریخ و ساعت فعلی: " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+        keypad
+    )
+
+@bot.on_callback()
+def callback_delay(bot: Robot, message: Message):
+    btn_id = message.aux_data.button_id
+    user_id = message.sender_id
+    
+    if btn_id == "cancel":
+        if user_id in active_jobs:
+            active_jobs.pop(user_id)
+            message.reply("❌ همه ارسال‌های زمان‌بندی شده لغو شدند.")
+        else:
+            message.reply("⚠️ شما هیچ ارسال زمان‌بندی شده‌ای ندارید.")
+        return
+    
+    if not btn_id.startswith("delay_"):
+        message.reply("❌ دکمه نامعتبر است!")
+        return
+    
+    seconds = int(btn_id.split("_")[1])
+    
+    if user_id in active_jobs:
+        active_jobs.pop(user_id)
+
+    sent_msg = bot.send_message(
+        message.chat_id,
+        f"⏳ تایمر {seconds} ثانیه‌ای شروع شد...\n🕰 زمان شروع: {datetime.now().strftime('%H:%M:%S')}"
+    )
+    
+    countdown_edit(message.chat_id, sent_msg['data']['message_id'], seconds)
+    def delayed_send():
+        if user_id not in active_jobs:
+            return
+        bot.send_message(
+            message.chat_id,
+            f"✅ کاربر {user_id} : زمان {seconds} ثانیه گذشت و دستور اجرا شد! ⏰"
+        )
+        active_jobs.pop(user_id, None)
+
+    job = Job(seconds, delayed_send)
+    active_jobs[user_id] = job
+
+    message.reply(
+        f"⏳ ثبت شد! پیام شما پس از {seconds} ثانیه ارسال خواهد شد.\n"
+        f"🕰 زمان شروع ثبت شده: {datetime.now().strftime('%H:%M:%S')}"
+    )
+bot.run()
+```
+
+##مثال ساده تر
+```
+from rubka import Robot
+from rubka.context import Message
+from rubka.jobs import Job
+from datetime import datetime
+
+bot = Robot("")
+
+active_jobs = {}
+
+@bot.on_message(commands=["timer"])
+def timer_handler(bot: Robot, message: Message):
+    user_id = message.sender_id
+    chat_id = message.chat_id
+    parts = message.text.split()
+
+    if len(parts) != 2 or not parts[1].isdigit():
+        return message.reply("⚠️ لطفاً مدت زمان را به صورت صحیح وارد کنید. مثل: `/timer 30`", parse_mode="markdown")
+
+    seconds = int(parts[1])
+    if user_id in active_jobs:
+        active_jobs.pop(user_id)
+
+    message.reply(f"⏳ تایمر {seconds} ثانیه‌ای شروع شد!\n🕰 زمان شروع: {datetime.now().strftime('%H:%M:%S')}")
+
+    def after_delay():
+        if user_id not in active_jobs:
+            return
+        bot.send_message(chat_id, f"✅ تایمر {seconds} ثانیه‌ای تمام شد! ⏰")
+        active_jobs.pop(user_id, None)
+
+    job = Job(seconds, after_delay)
+    active_jobs[user_id] = job
+
+bot.run()
+
+```
+
+##نمونه کد ادیت تایم و کرون جاب با اینلاین کیبورد 
+
+```
+from rubka import Robot
+from rubka.context import Message
+from rubka.keypad import ChatKeypadBuilder
+from rubka.jobs import Job
+from datetime import datetime, timedelta
+import threading
+import time
+
+bot = Robot("token")
+bot.edit_inline_keypad
+active_jobs = {}
+
+def build_delay_keypad():
+    delays = [10, 20, 30, 40, 50, 60, 75, 90, 120, 150]
+    builder = ChatKeypadBuilder()
+    buttons = []
+    for sec in delays:
+        buttons.append(builder.button(id=f"delay_{sec}", text=f"⏳ بعد از {sec} ثانیه"))
+    buttons.append(builder.button(id="cancel", text="❌ انصراف"))
+    
+    rows = [buttons[i:i+3] for i in range(0, len(buttons), 3)]
+    keypad = ChatKeypadBuilder()
+    for row in rows:
+        keypad.row(*row)
+    return keypad.build()
+
+def countdown_edit(chat_id: str, message_id: str, duration_sec: int):
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=duration_sec)
+
+    def run():
+        while True:
+            now = datetime.now()
+            if now >= end_time:
+                try:
+                    bot.edit_message_text(chat_id, message_id, "⏰ زمان تمام شد!")
+                except Exception as e:
+                    print("خطا در ویرایش پیام:", e)
+                break
+
+            remaining = end_time - now
+            text = (
+                f"⏳ تایمر فعال است...\n"
+                f"🕰 شروع: {start_time.strftime('%H:%M:%S')}\n"
+                f"⏲ پایان: {end_time.strftime('%H:%M:%S')}\n"
+                f"⌛ باقی‌مانده: {str(remaining).split('.')[0]}"
+            )
+            try:
+                bot.edit_message_text(chat_id, message_id, text)
+            except Exception as e:
+                print("خطا در ویرایش پیام:", e)
+            time.sleep(1)
+
+    threading.Thread(target=run, daemon=True).start()
+
+@bot.on_message(commands=["start"])
+def start_handler(bot: Robot, message: Message):
+    keypad = build_delay_keypad()
+    message.reply_keypad(
+        "سلام 👋\n"
+        "یک زمان برای ارسال پیام انتخاب کنید:\n"
+        "📅 تاریخ و ساعت فعلی: " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+        keypad
+    )
+
+@bot.on_callback()
+def callback_delay(bot: Robot, message: Message):
+    btn_id = message.aux_data.button_id
+    user_id = message.sender_id
+    
+    if btn_id == "cancel":
+        if user_id in active_jobs:
+            active_jobs.pop(user_id)
+            message.reply("❌ همه ارسال‌های زمان‌بندی شده لغو شدند.")
+        else:
+            message.reply("⚠️ شما هیچ ارسال زمان‌بندی شده‌ای ندارید.")
+        return
+    if not btn_id.startswith("delay_"):
+        message.reply("❌ دکمه نامعتبر است!")
+        return
+    seconds = int(btn_id.split("_")[1])
+    if user_id in active_jobs:
+        active_jobs.pop(user_id)
+    sent_msg = bot.edit_inline_keypad(
+        message.chat_id,
+        f"⏳ تایمر {seconds} ثانیه‌ای شروع شد...\n🕰 زمان شروع: {datetime.now().strftime('%H:%M:%S')}"
+    )
+    print(sent_msg)
+    countdown_edit(message.chat_id, sent_msg['data']['message_id'], seconds)
+    def delayed_send():
+        if user_id not in active_jobs:
+            return
+        
+        bot.send_message(
+            message.chat_id,
+            f"✅ کاربر {user_id} : زمان {seconds} ثانیه گذشت و دستور اجرا شد! ⏰"
+        )
+        active_jobs.pop(user_id, None)
+
+    job = Job(seconds, delayed_send)
+    active_jobs[user_id] = job
+
+    message.reply(
+        f"⏳ ثبت شد! پیام شما پس از {seconds} ثانیه ارسال خواهد شد.\n"
+        f"🕰 زمان شروع ثبت شده: {datetime.now().strftime('%H:%M:%S')}"
+    )
+
+bot.run()
+```
+## نتیجه نهایی
+این ربات با استفاده از کلاس `Job` به سادگی قابلیت زمان‌بندی و اجرای دستورات در آینده را فراهم کرده و همزمان با به‌روزرسانی پیام، تجربه کاربری بهتری ارائه می‌دهد.
+
+---
+
+## به‌روزرسانی بعدی پیشنهادی:
+- افزودن قابلیت لغو تایمر در حال اجرا
+- نمایش لیست تایمرهای فعال
+- امکان تعریف پیام سفارشی برای ارسال بعد از تایمر
 
