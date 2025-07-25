@@ -1,4 +1,9 @@
 # 📚 Rubka Bot Python Library Documentation
+# نمونه تنظیم وب‌هوک (Webhook) در کتابخونه rubla
+
+برای مشاهده مستندات کامل و آخرین نسخه راهنما، لطفاً به آدرس زیر مراجعه کنید:  
+[github.com/Mahdy-Ahmadi](https://github.com/Mahdy-Ahmadi/rubka/edit/main/webhook.md)
+
 
 ## 🧠 Introduction
 `rubka` is a Python library to interact with the [Rubika Bot API](https://rubika.ir/). This library helps you create Telegram-like bots with support for messages, inline buttons, chat keypads, and callback handling.
