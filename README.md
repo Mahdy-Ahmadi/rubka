@@ -2,7 +2,7 @@
 # نمونه تنظیم وب‌هوک (Webhook) در کتابخونه rubla
 
 برای مشاهده مستندات کامل و آخرین نسخه راهنما، لطفاً به آدرس زیر مراجعه کنید:  
-[github.com/Mahdy-Ahmadi](https://github.com/Mahdy-Ahmadi/rubka/edit/main/webhook.md)
+[github.com/Mahdy-Ahmadi](https://github.com/Mahdy-Ahmadi/rubka/blob/main/webhook.md))
 
 
 ## 🧠 Introduction
