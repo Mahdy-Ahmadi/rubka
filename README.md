@@ -1,5 +1,5 @@
 # 📚 Rubka Bot Python Library Documentation
-# نمونه تنظیم وب‌هوک (Webhook) در کتابخونه rubla
+# نمونه تنظیم وب‌هوک (Webhook) در کتابخونه rubka
 
 برای مشاهده مستندات کامل و آخرین نسخه راهنما، لطفاً به آدرس زیر مراجعه کنید:  
 [github.com/Mahdy-Ahmadi](https://github.com/Mahdy-Ahmadi/rubka/blob/main/webhook.md))
