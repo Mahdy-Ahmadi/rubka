@@ -11,6 +11,15 @@ bot = Robot(token="token")
 # چت ایدی ادمین
 ADMIN_ID = "b0HJtFl0Dx60230306be5dd14a713977"
 
+async def set_com():
+    print(await bot.set_commands(
+        [
+            {"command": "start", "description": "فعالسازی ربات"},
+            {"command": "admin", "description": "پنل ادمین ربات (مخصوص ادمین‌ها)"}
+        ]
+    ))
+
+
 DB_FILE = "user_data.json"
 LOG_FILE = "chat_logs.json"
 
@@ -351,6 +360,7 @@ async def message_handler(bot: Robot, msg: Message):
 
 async def main():
     load_db()
+    await set_com()
     await bot.run()
 
 if __name__ == "__main__":
