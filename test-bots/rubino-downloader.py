@@ -107,7 +107,7 @@ def get_admin_panel_keyboard():
     k.row(k.button(id=ID_ADMIN_MAINTENANCE, text="⚙️ روشن/خاموش کردن ربات"), k.button(id=ID_BACK, text=ID_BACK))
     return k.build(resize_keyboard=True, on_time_keyboard=True)
 
-bot = Robot(token=BOT_TOKEN)
+bot = Robot(token=BOT_TOKEN,show_progress=True)
 
 
 @bot.on_message()
