@@ -213,9 +213,8 @@ async def message_handler(bot: Robot, msg: Message):
     f"💬 کامنت‌ها: {res_data['comment']}\n"
     f"👁 بازدیدها: {res_data['view']}\n"
     f"🆔 آیدی پست: {res_data['post_id']}\n\n"
-    f"🔗 لینک دانلود مستقیم:\n{res_data['url']}\n\n"
 )
-                await msg.reply_image(res_data['thumb'],text=caption)
+                await bot.send_video(msg.chat_id,res_data['url'],text=caption)
             else:
                 add_to_history(chat_id, "پست", text.split("/")[-1], "failure")
                 await bot.edit_message_text(chat_id, wait_msg['data']['message_id'], "❌ خطایی در دانلود رخ داد.")
