@@ -13,7 +13,7 @@ $file_name = "message.json";
 $file_path = __DIR__ . "/" . $file_name;
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
 $host = $_SERVER['HTTP_HOST'];
-$script_dir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\');
+$script_dir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
 $file_url = $protocol . "://" . $host . $script_dir . "/" . $file_name;
 $input = file_get_contents("php://input");
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($input)) {
