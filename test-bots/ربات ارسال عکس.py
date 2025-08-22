@@ -1,11 +1,17 @@
-from rubka import Robot
-from rubka.keypad import ChatKeypadBuilder
-from rubka.button import InlineBuilder
+import asyncio
+from rubka.asynco import Robot
+from rubka.button import InlineBuilder,ChatKeypadBuilder
 from rubka.context import Message
-chat_keypad = ChatKeypadBuilder().row(
-    ChatKeypadBuilder().button(id="btn_female", text="زن"),
-    ChatKeypadBuilder().button(id="btn_male", text="مرد")
-).build()
+
+chat_keypad = (
+    ChatKeypadBuilder()
+    .row(
+        ChatKeypadBuilder().button(id="btn_female", text="زن"),
+        ChatKeypadBuilder().button(id="btn_male", text="مرد")
+    )
+    .build()
+)
+
 inline_keypad = (
     InlineBuilder()
     .row(
@@ -17,24 +23,44 @@ inline_keypad = (
     )
     .build()
 )
-bot = Robot("token")
-@bot.on_message()
-def handler(bot: Robot, message: Message):
-    message.reply_image(
-        path="https://s6.uupload.ir/files/chatgpt_image_jul_20,_2025,_10_22_47_pm_oiql.png",
+
+bot = Robot(
+    "token",
+    web_hook=None
+)
+
+
+@bot.on_message(commands=['start'])
+async def handler(bot: Robot, message: Message):
+    await message.reply_image(
+        path="https://s6.uupload.ir/files/ef61798e-8986-46a2-9769-fa2be838cddd_oj4b.jpeg",
         text="📷 عکس ریپلای شده دکمه شیشه ای",
         inline_keypad=inline_keypad
     )
-    print(message.reply_image(
-        path="https://s6.uupload.ir/files/chatgpt_image_jul_20,_2025,_10_22_47_pm_oiql.png",
+
+    resp = await message.reply_image(
+        path="https://s6.uupload.ir/files/ef61798e-8986-46a2-9769-fa2be838cddd_oj4b.jpeg",
         text="📷 عکس ریپلای شده دکمه کیبوردی",
         chat_keypad=chat_keypad,
         chat_keypad_type="New"
-    ))
+    )
+    print(resp)
+
+@bot.on_callback('btn_male')
+async def btn_male(bot: Robot, message: Message):
+    await message.answer("سلام مرد")
+    return
+
+@bot.on_callback('btn_female')
+async def btn_female(bot: Robot, message: Message):
+    await message.answer("سلام زن")
+    return
+
 @bot.on_callback()
-def callback_handler(bot: Robot, message: Message):
-    data = message.aux_data.button_id
-    if data == "btn_male":message.reply("سلام مرد")
-    elif data == "btn_female":message.reply("سلام زن")
-    else:message.reply_text(f"دکمه ناشناخته: {data}")
-bot.run()
+async def callback_handler(bot: Robot, message: Message):
+    await message.answer(f"button : {message.aux_data.button_id}")
+    return
+
+
+if __name__ == "__main__":
+    asyncio.run(bot.run())
