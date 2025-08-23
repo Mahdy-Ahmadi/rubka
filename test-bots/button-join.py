@@ -9,7 +9,7 @@ async def handle_message(bot: Robot, message: Message):
         chat_id=message.chat_id,
         text="سلام خوش آمدید جهت ادامه عضو شوید",
         title_button="عضویت",
-        username="rubka_library",
+        username=["rubka_library","api_dev"],
         reply_to_message_id=message.message_id
     )
 
