@@ -53,7 +53,7 @@ async def handler(bot: Robot, message: Message):
         total = data.get("total_downloads", 0)
         last_days = data.get("last_days", [])
 
-        caption = f"📦 پکیج: {pkg}\n📊 دانلود کل: {total:,}\n\n👇 دانلودهای ۵ روز اخیر روی دکمه‌هاست"
+        caption = f"📦 پکیج: {pkg}\n📊 دانلود کل: {total:,}"
 
         inline_keypad = build_inline_last_days(last_days) if last_days else None
 
