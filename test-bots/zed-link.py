@@ -6,7 +6,7 @@ bot = Robot("")
 admin_id: str | None = None
 
 
-@bot.on_message_group(filters=filters.text_regex(r"(https?://|www\.|\.ir|\.com|\.net|t\.me|@\w+)") & filters.text_contains_any(["https","http", "@"]))
+@bot.on_message_group(filters=filters.text_regex(r"(https?://|www\.|\.ir|\.com|\.net|t\.me|@\w+)") | filters.text_contains_any(["https","http", "@"]))
 async def handle_start(bot: Robot, message: Message):
     if admin_id is not None and message.sender_id == admin_id:
         return
