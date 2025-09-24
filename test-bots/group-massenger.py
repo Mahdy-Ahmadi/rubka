@@ -185,7 +185,6 @@ async def group_message_handler(bot: Robot, message: Message):
 
     
     if chat_data.get("talker"):
-        print("ddjdjdj")
         text = message.text or ""
         if text:
             async with aiohttp.ClientSession() as session:
