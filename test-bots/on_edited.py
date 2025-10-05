@@ -2,7 +2,7 @@ import asyncio
 from rubka.asynco import Robot, Message
 
 # ساخت ربات با توکن
-bot = Robot("")
+bot = Robot("",max_msg_age=100)
 
 # هندلر برای پیام‌های ادیت شده
 @bot.on_edited_message()
