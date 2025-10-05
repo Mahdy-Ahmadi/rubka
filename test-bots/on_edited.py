@@ -1,20 +1,17 @@
 import asyncio
 from rubka.asynco import Robot, Message
 
-# ساخت ربات با توکن
-bot = Robot("",max_msg_age=100)
+max_msg = 100 #فیلتر زمان پیام های قدیمی (ممکنه بعد از ران کردن مجدد پیام های قبلی رو هم دریافت کنه)
 
-# هندلر برای پیام‌های ادیت شده
+bot = Robot("",max_msg_age=max_msg)
+
 @bot.on_edited_message()
 async def on_message_edit(_: Robot, message: Message):
     await message.reply("✏️ پیام شما ویرایش شد.")
 
-# هندلر برای پیام‌های معمولی
 @bot.on_message()
 async def on_new_message(_: Robot, message: Message):
     if not message.is_edited:
         await message.reply("✅ پیام شما دریافت شد.")
 
-# اجرای ربات
-if __name__ == "__main__":
-    asyncio.run(bot.run())
+asyncio.run(bot.run())
