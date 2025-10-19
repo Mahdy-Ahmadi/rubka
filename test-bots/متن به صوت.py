@@ -179,7 +179,8 @@ async def handle_voice_request(bot: Robot, message: Message):
     gender = settings["gender"]
     speed = settings["speed"]
     hzn = settings["hzn"]
-    volume = settings["volume"]
+    try:volume = settings["volume"]
+    except:volume = 10
 
     url = f"https://v3.api-free.ir/TTS/?q={text}&type={gender}&hzn={hzn}&speed={speed}&volume={volume}"
     status_msg = await message.reply("🎙 در حال ساخت ویس... لطفاً صبر کن.")
@@ -191,7 +192,18 @@ async def handle_voice_request(bot: Robot, message: Message):
         if not data.get("status"):
             return await status_msg.edit("⚠ مشکلی در ساخت ویس پیش اومد.")
         link = data["data"]["download_link"]
-        await message.reply_music(link, text=f"{await message.author_name}")
+        voice_info = data.get("data", {}).get("voice_info", {})
+        caption = f"""🎧 ویس شما :
+
+🎙 نام گوینده : {voice_info.get('LocalName', 'نامشخص')}
+⚧ جنسیت : {"زن" if voice_info.get("Gender") == "Female" else "مرد"}
+🌍 زبان : {voice_info.get('LocaleName', 'نامشخص')}
+💠 نوع صدا : {voice_info.get('VoiceType', 'نامشخص')}
+🎧 نرخ نمونه‌برداری : {voice_info.get('SampleRateHertz', 'نامشخص')} Hz
+🚀 سرعت گفتار : {voice_info.get('WordsPerMinute', 'نامشخص')} کلمه در دقیقه
+
+< {await message.author_name} >"""
+        await message.reply_music(link, text=caption)
         await status_msg.delete()
     except Exception as e:
         await status_msg.edit(f"❌ خطا در ساخت ویس:\n{e}")
