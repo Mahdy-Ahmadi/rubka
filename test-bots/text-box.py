@@ -24,7 +24,7 @@ async def send_textbox(bot: Robot, message: Message):
 
 @bot.on_callback("enter_name")
 async def receive_textbox(bot: Robot, message: Message):
-    user_input = message.aux_data.start_id
+    user_input = message.text
     await message.reply(f"✅ نام وارد شده: {user_input}")
 
 asyncio.run(bot.run())
