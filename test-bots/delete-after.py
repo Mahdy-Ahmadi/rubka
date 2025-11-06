@@ -1,4 +1,3 @@
-import asyncio
 from rubka.asynco import Robot,Message
 
 bot = Robot("")
@@ -11,4 +10,4 @@ async def handle_start(bot: Robot, message: Message):
         delete_after=10
     )
 
-asyncio.run(bot.run())
+bot.run()
