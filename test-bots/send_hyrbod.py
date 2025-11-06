@@ -1,9 +1,9 @@
+from rubka.asynco import Robot,Message,filters
 import asyncio
-from rubka.asynco import Robot,Message
 
 bot = Robot("")
 
-@bot.on_message(commands=['start'])
+@bot.on_message(filters.is_command.start) #شروع با ارسال کامند استارت
 async def handle_start(bot: Robot, message: Message):
     sent = await message.reply("سلام") #ارسال پیام
 
@@ -13,4 +13,4 @@ async def handle_start(bot: Robot, message: Message):
     await asyncio.sleep(3)# انتظار سه ثانیه ای
     await sent.delete() # حذف پیام ارسال شده
 
-asyncio.run(bot.run())
+bot.run()
