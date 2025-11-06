@@ -14,7 +14,7 @@ def check_Follow(username):
 @bot.on_message(filters.is_private)
 async def handle_start(_: Robot, message: Message):
     username = await message.username
-    if username == "None":await message.reply(f"شما دارای پیج روبینو نمیباشید")
+    if username == "None":return await message.reply(f"شما دارای پیج روبینو نمیباشید")
     send = await message.reply(f"منتظر بمانید...")
     has_followed = check_Follow(username)
     if has_followed:
