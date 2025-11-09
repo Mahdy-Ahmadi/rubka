@@ -25,7 +25,7 @@ async def handle_admin_message(bot: Robot, message: Message):
                     "reply_to_message_id": message.reply_to_message_id or None
                 }
                 if hasattr(message, "file") and message.file:
-                    kwargs["file_url"] = await bot.get_url_file(message.file.file_id)
+                    kwargs["path"] = await bot.get_url_file(message.file.file_id)
                 await send_func(**kwargs)
                 break
     except Exception as e:
