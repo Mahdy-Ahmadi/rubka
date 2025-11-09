@@ -1,11 +1,11 @@
-from rubka.asynco import Robot, Message
+from rubka.asynco import Robot, Message,filters
 
 ADMIN_ID = "" #سندر ایدی ادمین ربات
 TOKEN = "" # توکن شما
 
 bot = Robot(TOKEN)
 
-@bot.on_message()
+@bot.on_message(filters.is_group)
 async def handle_admin_message(bot: Robot, message: Message):
     if message.sender_id != ADMIN_ID:return
     await message.delete()
