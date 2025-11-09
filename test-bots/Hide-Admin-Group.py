@@ -1,6 +1,6 @@
 from rubka.asynco import Robot, Message, filters
 
-ADMIN_ID = "u0HJtFl043f3d7e43bdc1f305ed42a11" #سندر ایدی مالک گروه
+ADMIN_ID = "u0HJtFl043f3d7e43bdc1f305ed42a11" #سندر ایدی ادمین گپ
 TOKEN = "" # توکن ربات
 
 bot = Robot(TOKEN)
@@ -30,4 +30,4 @@ async def handle_admin_message(bot: Robot, message: Message):
                 break
     except Exception as e:
         print(e)
-bot.run()
+bot.run(sleep_time=0)
