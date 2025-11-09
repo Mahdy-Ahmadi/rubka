@@ -9,7 +9,7 @@ async def handle_intro(bot: Robot, message: Message):
 <b>Hello everyone!</b> 👋<br>
 <u>This is a complete guide message</u> that includes all formatting:<br>
 <b>Bold text</b><br>
-<i>Italic text</i><br>
+<i>Spoil text</i><br>
 <u>Underlined text</u><br>
 <s>Strikethrough text</s><br>
 <code>Inline code</code><br>
