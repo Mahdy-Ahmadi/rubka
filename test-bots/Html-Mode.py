@@ -4,18 +4,28 @@ TOKEN = ""
 bot = Robot(TOKEN)
 
 @bot.on_message()
-async def handle_intro(bot: Robot, message: Message):
-    html_text = """
-<b>Hello everyone!</b> 👋<br>
-<u>This is a complete guide message</u> that includes all formatting:<br>
+async def handle_message(bot: Robot, message: Message):
+    html_text = f"""<b>Hi {await message.name} 👋</b><br><br>
+Welcome to our amazing Rubka bot demo! 🎉<br>
+Here you can see all HTML formatting features:<br><br>
 <b>Bold text</b><br>
-<i>Spoil text</i><br>
+<i>Italic text</i><br>
 <u>Underlined text</u><br>
 <s>Strikethrough text</s><br>
-<code>Inline code</code><br>
-<a href="https://rubka.ir">Hyperlink to Rubka</a><br>
+<code>Mono text</code><br>
+<code>Inline code example</code><br>
+<pre>from rubka.asynco import Robot, Message
+bot = Robot("token")
+@bot.on_message()
+async def handle_start(bot: Robot, message: Message):
+    await message.reply(f"Hello World")
+bot.run()
+</pre><br>
+<a href="https://rubka.ir">Link to Rubka</a><br>
 Emojis 😎✨🔥<br><br>
-For more information, visit <a href="https://rubka.ir">Rubka website</a>.
+<b>Important parts:</b><br>
+<u>Emphasized words</u><br>
+Enjoy exploring all the HTML features! 🎉
 """
     await message.reply(html_text, parse_mode="HTML")
 
