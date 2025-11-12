@@ -22,7 +22,7 @@ Outside the quote, you can also highlight:
 - __Emphasized words__  
 - Links like [Rubka](https://rubka.ir)  
 
-You can even show `inline code` or code blocks:
+> You can even show `inline code` or code blocks:
 
 ```from rubka.asynco import Robot,Message
 bot = Robot("token")
