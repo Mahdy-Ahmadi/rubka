@@ -77,7 +77,7 @@ rules_config,rules_fa = {
 }
 
 def check_rules(message: Message):
-    if not rules_config["active"]:return []
+    #if not rules_config["active"]:return []
     violations = []
     if rules_config["link"] and message.has_link:violations.append("لینک")
     if rules_config.get("anti_flood") and message.text and message.text.count(".") >= 40:violations.append("کد هنگی")
