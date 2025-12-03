@@ -2,7 +2,7 @@ from rubka.asynco import Robot, Message, filters
 
 ADMIN_ID = ['u0Ife3d0c3351b1e2e312a58dc9c7760']#ادمین های گروه (sender_id)
 
-bot = Robot("BBIDF0SPZDZOLGSCIFEVSBAZAWCYXLCLOEGBWPDLKFTRAABEOOXZDLVCMMLLGCQM", api_endpoint="messenger")
+bot = Robot("token", api_endpoint="messenger")
 
 bot.start_save_message()
 
