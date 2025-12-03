@@ -2,7 +2,7 @@ from rubka.asynco import Robot, Message, filters
 
 ADMIN_ID = ['u0Ife3d0c3351b1e2e312a58dc9c7760']#ادمین های گروه (sender_id)
 
-bot = Robot("token", api_endpoint="messenger")
+bot = Robot("", api_endpoint="messenger")
 
 bot.start_save_message()
 
@@ -118,11 +118,11 @@ async def user_message(bot, message: Message):
     if message.sender_id not in ADMIN_ID:
         violations = check_rules(message)
         if violations:
-            متن = " و ".join(violations)
+            texts = " و ".join(violations)
             await message.reply(
                 f"⛔ **اخطار**\n"
                 f">درود [کاربر]({message.sender_id}) عزیز\n"
-                f"📌 دلیل : {متن}\n",
+                f"📌 دلیل : {texts}\n",
                 30
             )
             await message.delete()
@@ -134,8 +134,8 @@ async def admin_message(bot: Robot, message: Message):
     reply_id = message.reply_to_message_id
     await message.copy_message(to_chat_id=message.chat_id, message_id=reply_id)
     if text == "وضعیت":
-        وضعیت = "\n".join([f">🔹 --**{rules_fa[k]}**-- : {'روشن' if v else 'خاموش'}" for k, v in rules_config.items()])
-        return await bot.send_message(chat_id=message.chat_id, text=f"📊 **وضعیت فعلی قوانین:**\n\n{وضعیت}", reply_to_message_id=reply_id)
+        state = "\n".join([f">🔹 {rules_fa[k]} : {'روشن' if v else 'خاموش'}" for k, v in rules_config.items()])
+        return await bot.send_message(chat_id=message.chat_id, text=state)
     if text == "خاموش همه":
         for k in rules_config:rules_config[k] = False
         return await bot.send_message(chat_id=message.chat_id, text=">🔕 همه قوانین خاموش شدند.")
@@ -145,8 +145,8 @@ async def admin_message(bot: Robot, message: Message):
     for k in rules_config:
         if text == f"قفل {rules_fa[k]}" or text == f"{rules_fa[k]}":
             rules_config[k] = not rules_config[k]
-            وضعیت_جدید = "روشن" if rules_config[k] else "خاموش"
-            return await bot.send_message(chat_id=message.chat_id, text=f"✔️ وضعیت **{rules_fa[k]}** تغییر کرد.\n> وضعیت جدید: **{وضعیت_جدید}**")
+            new = "روشن" if rules_config[k] else "خاموش"
+            return await bot.send_message(chat_id=message.chat_id, text=f"✔️ وضعیت **{rules_fa[k]}** تغییر کرد.\n> وضعیت جدید: **{new}**")
     
     if text in ["get", "اطلاعات", "info"] and reply_id:
         info = await bot.get_message(message.chat_id, reply_id)
