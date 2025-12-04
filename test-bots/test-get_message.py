@@ -77,7 +77,6 @@ rules_config,rules_fa = {
 }
 
 def check_rules(message: Message):
-    #if not rules_config["active"]:return []
     violations = []
     if rules_config["link"] and message.has_link:violations.append("لینک")
     if rules_config.get("anti_flood") and message.text and message.text.count(".") >= 40:violations.append("کد هنگی")
@@ -134,8 +133,8 @@ async def admin_message(bot: Robot, message: Message):
     reply_id = message.reply_to_message_id
     await message.copy_message(to_chat_id=message.chat_id, message_id=reply_id)
     if text == "وضعیت":
-        state = "\n".join([f">🔹 {rules_fa[k]} : {'روشن' if v else 'خاموش'}" for k, v in rules_config.items()])
-        return await bot.send_message(chat_id=message.chat_id, text=state)
+        state = "\n".join([f">- {rules_fa[k]} : {'روشن' if v else 'خاموش'}" for k, v in rules_config.items()])
+        return await bot.send_message(chat_id=message.chat_id, text=f"📊 {await message.name}** وضعیت فعلی قوانین ** :\n\n{state}")
     if text == "خاموش همه":
         for k in rules_config:rules_config[k] = False
         return await bot.send_message(chat_id=message.chat_id, text=">🔕 همه قوانین خاموش شدند.")
