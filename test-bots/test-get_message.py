@@ -2,7 +2,7 @@ from rubka.asynco import Robot, Message, filters
 
 ADMIN_ID = ['u0Ife3d0c3351b1e2e312a58dc9c7760']#ادمین های گروه (sender_id)
 
-bot = Robot("", api_endpoint="messenger")
+bot = Robot("", api_endpoint="messenger",max_msg_age=2000)
 
 bot.start_save_message()
 
@@ -133,8 +133,8 @@ async def admin_message(bot: Robot, message: Message):
     reply_id = message.reply_to_message_id
     await message.copy_message(to_chat_id=message.chat_id, message_id=reply_id)
     if text == "وضعیت":
-        state = "\n".join([f">- {rules_fa[k]} : {'روشن' if v else 'خاموش'}" for k, v in rules_config.items()])
-        return await bot.send_message(chat_id=message.chat_id, text=f"📊 {await message.name}** وضعیت فعلی قوانین ** :\n\n{state}")
+        state = "\n".join([f">=) {rules_fa[k]} : {'روشن' if v else 'خاموش'}" for k, v in rules_config.items()])
+        return await bot.send_message(chat_id=message.chat_id, text=f"📊 {await message.name} ** وضعیت فعلی قوانین ** :\n\n{state}")
     if text == "خاموش همه":
         for k in rules_config:rules_config[k] = False
         return await bot.send_message(chat_id=message.chat_id, text=">🔕 همه قوانین خاموش شدند.")
