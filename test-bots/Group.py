@@ -1,10 +1,13 @@
 from rubka.asynco import Robot, Message, filters
 import sqlite3,time
 import random,asyncio
-bot = Robot("",max_msg_age=2000,safeSendMode=True)
+
+#مالک ربات باید در گروه کلمه فعال رو ارسال کنه
+
+bot = Robot("Token",max_msg_age=2000,safeSendMode=True)
 bot.start_save_message()
 
-conn = sqlite3.connect("bot.db", check_same_thread=False)
+conn = sqlite3.connect("bot-go.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS chats (
