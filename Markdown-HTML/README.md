@@ -1,4 +1,4 @@
-# 📘 Track_parsed – Markdown & HTML Usage Guide
+# 📘 rubka – Markdown & HTML Usage Guide
 
 این داکیومنت برای استفاده از سیستم پارس مارک‌داون و HTML شما نوشته شده و برای **کپی مستقیم** یا **دانلود** آماده است.
 
@@ -11,7 +11,7 @@
 ```python
 from rubka.asynco import Robot, Message
 
-bot = Robot("")
+bot = Robot("token")
 
 @bot.on_message()
 async def start(bot: Robot, message: Message):
@@ -27,7 +27,7 @@ bot.run()
 ```python
 from rubka.asynco import Robot, Message
 
-bot = Robot("", parse_mode="HTML")
+bot = Robot("token", parse_mode="HTML")
 
 @bot.on_message()
 async def start(bot: Robot, message: Message):
@@ -115,13 +115,13 @@ await message.reply("<code>print('hello')</code>")
 ### 🔹 Code Block
 
 Markdown:
-```python
+````python
 await message.reply("""
 ```
 print("Hello World")
 ```
 """)
-```
+````
 
 HTML:
 ```python
