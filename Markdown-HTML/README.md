@@ -35,6 +35,21 @@ async def start(bot: Robot, message: Message):
 
 bot.run()
 ```
+---
+
+### حالت ورودی در متود
+
+```python
+from rubka.asynco import Robot, Message
+
+bot = Robot("token")
+
+@bot.on_message()
+async def start(bot: Robot, message: Message):
+    await message.reply("<b>Bold text</b>",parse_mode='HTML')
+
+bot.run()
+```
 
 ---
 
