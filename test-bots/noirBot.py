@@ -7,7 +7,7 @@ from pathlib import Path
 BOT_TOKEN = "token" #توکن بات
 ADMIN_ID = "b0FnQvV0P3800a2f75e560a02e2b5049" # چت ایدی ادمین
 bot = Robot(token=BOT_TOKEN, safeSendMode=True,show_progress=True)
-
+DB_PATH = "bot_version7.db"
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -93,8 +93,6 @@ BTN_ADMIN_USER_INFO = "ℹ️ دریافت اطلاعات کاربر"
 BTN_ADMIN_VIEW_REPORTS = "🚩 مشاهده و مدیریت گزارش‌ها"
 BTN_ADMIN_CLEAR_QUEUE = "🧹 پاکسازی صف انتظار"
 BTN_ADMIN_VIEW_BLOCKED = "👥 لیست کاربران مسدود"
-
-DB_PATH = "bot_v67.db"
 def create_tables():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -166,7 +164,7 @@ def save_db():
 
             cursor.execute('''
             INSERT OR REPLACE INTO users (id, nickname, gender, age, city, province, height, bio, blocked_users, interests, seeking_gender, seeking_age_min, seeking_age_max, seeking_province, seeking_city)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 uid,
                 user_info.get("nickname", "ناشناس"),
@@ -221,17 +219,19 @@ def save_reports():
         cursor = conn.cursor()
         for report in DB["reports"]:
             cursor.execute('''
-            INSERT OR REPLACE INTO reports (id, reporter_id, reported_user, reason, timestamp, resolved, resolution_details)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                report["id"],
-                report["reporter"],
-                report["reported_user"],
-                report["reason"],
-                report["timestamp"],
-                report["resolved"],
-                report["resolution_details"]
-            ))
+INSERT OR REPLACE INTO reports (
+    id, reporter_id, reported_user, reason, timestamp, resolved, resolution_details
+)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+''', (
+    report["id"],
+    report["reporter_id"],
+    report["reported_user"],
+    report["reason"],
+    report["timestamp"],
+    report["resolved"],
+    report["resolution_details"]
+))
         conn.commit()
         conn.close()
     except sqlite3.Error as e:
@@ -252,14 +252,15 @@ async def add_report(reporter_id: str, reported_id: str, reason: str) -> int:
     conn.close()
     DB["user_info"][reporter_id]["reports_count"] += 1
     report = {
-        "id": report_id,
-        "reporter": reporter_id,
-        "reported_user": reported_id,
-        "reason": reason,
-        "timestamp": timestamp,
-        "resolved": False,
-        "resolution_details": ""
-    }
+    "id": report_id,
+    "reporter_id": reporter_id,
+    "reported_user": reported_id,
+    "reason": reason,
+    "timestamp": timestamp,
+    "resolved": False,
+    "resolution_details": ""
+}
+
     DB["reports"].append(report)
     save_reports()
     await store_log("report_added", reporter_id, reported_id, reason, {"report_id": report_id})
@@ -284,7 +285,6 @@ def get_user_info_display(uid: str, for_admin: bool = False) -> str:
     user_data = DB["user_info"][uid]
     gender_map = {'male': '🧔 مرد', 'female': '👩 زن', 'other': '⚧ دیگر', None: 'ثبت نشده'}
     seeking_gender_map = {'male': '🧔 مرد', 'female': '👩 زن', 'other': '⚧ دیگر', None: 'مهم نیست'}
-
     profile_info = (
     f">👤 **پروفایل کاربر**: `{user_data.get('nickname', 'ناشناس')}`\n"
     f">-----------------------------\n"
@@ -307,9 +307,6 @@ def get_user_info_display(uid: str, for_admin: bool = False) -> str:
     f">🎂 دنبال محدوده سنی : {user_data.get('seeking_age_min', '؟')} تا {user_data.get('seeking_age_max', '؟')} سال\n"
     f">🗺 دنبال استان : {user_data.get('seeking_province') or 'مهم نیست'}\n"
 )
-
-
-
     if for_admin:
         admin_part = (
             f"\n\n===== اطلاعات ادمین =====\n"
@@ -324,7 +321,6 @@ def get_user_info_display(uid: str, for_admin: bool = False) -> str:
 async def send_main_menu(uid: str, text: str):
     user_info = DB["user_info"][uid]
     status = user_info.get("status", "idle")
-
     builder = ChatKeypadBuilder()
     if status == "chatting":
         builder.row(builder.button(id="exit_chat", text=BTN_EXIT_CHAT))
@@ -343,9 +339,7 @@ async def send_main_menu(uid: str, text: str):
         builder.row(builder.button(id="edit_profile", text=BTN_EDIT_PROFILE), builder.button(id="online_count", text=BTN_ONLINE_COUNT))
         if uid == ADMIN_ID:
             builder.row(builder.button(id="go_to_admin", text=BTN_GO_TO_ADMIN))
-            
     await bot.send_message(uid, text, chat_keypad=builder.build(resize_keyboard=True))
-
 
 async def send_profile_editor_menu(uid: str, text: str = "بخش مورد نظر برای ویرایش یا تکمیل پروفایل را انتخاب کنید:"):
     builder = ChatKeypadBuilder()
@@ -374,34 +368,25 @@ async def send_gender_selection_menu(uid: str, text: str, for_seeking: bool = Fa
         builder.row(builder.button(id="other_gender", text=BTN_OTHER_GENDER))
         builder.row(builder.button(id="cancel", text=BTN_BACK))
     await bot.send_message(uid, text, chat_keypad=builder.build(resize_keyboard=True))
-    
 async def send_seeking_preferences_menu(uid: str, text: str = "تنظیمات جستجوی خود را مشخص کنید:"):
     builder = ChatKeypadBuilder()
     builder.row(builder.button(id="set_seeking_gender", text="جنسیت مورد نظر"), builder.button(id="set_seeking_age", text="محدوده سنی"))
     builder.row(builder.button(id="set_seeking_province", text="استان مورد نظر"))
     builder.row(builder.button(id="back_to_profile_editor", text=BTN_BACK))
     await bot.send_message(uid, text, chat_keypad=builder.build(resize_keyboard=True))
-
-
-
-
 def is_blocked(u1: str, u2: str) -> bool:
     return u2 in DB["user_info"][u1].get("blocked_users", set()) or \
            u1 in DB["user_info"][u2].get("blocked_users", set())
-
 async def connect_users(u1: str, u2: str):
     DB["active_chats"][u1] = u2
     DB["active_chats"][u2] = u1
     DB["user_info"][u1]["status"] = "chatting"
     DB["user_info"][u2]["status"] = "chatting"
-    
     u1_nickname = DB["user_info"][u1].get("nickname", "ناشناس")
     u2_nickname = DB["user_info"][u2].get("nickname", "ناشناس")
-
     await send_main_menu(u1, f"✅ گفتگو با '{u2_nickname}' آغاز شد. می‌توانید پیام دهید.")
     await send_main_menu(u2, f"✅ گفتگو با '{u1_nickname}' آغاز شد. می‌توانید پیام دهید.")
     await store_log("connect", u1, u2)
-
 async def disconnect_users(uid: str, reason_for_peer: str, text_for_user: str = "✅ شما از چت خارج شدید."):
     peer = DB["active_chats"].pop(uid, None)
     if peer:
@@ -409,85 +394,57 @@ async def disconnect_users(uid: str, reason_for_peer: str, text_for_user: str = 
         DB["user_info"][peer]["status"] = "rating"
         DB["user_info"][peer]["last_peer"] = uid
         await send_main_menu(peer, f"{reason_for_peer}\n\nلطفاً به این گفتگو امتیاز دهید:")
-
     DB["user_info"][uid]["status"] = "rating"
     DB["user_info"][uid]["last_peer"] = peer
     await send_main_menu(uid, f"{text_for_user}\n\nلطفاً به این گفتگو امتیاز دهید:")
     await store_log("disconnect", uid, peer, reason_for_peer)
 
-
 async def try_match_users(queue, u1: str):
-    """
-    برای کاربر u1 در صف داده شده یک هم‌صحبت مناسب بر اساس تنظیمات جستجو پیدا می‌کند.
-    """
     user1_info = DB["user_info"][u1]
-    
-    
     potential_matches = []
     for u2 in list(queue):
         if u1 == u2 or is_blocked(u1, u2):
             continue
-
         user2_info = DB["user_info"][u2]
-        
-        
         match_u1_to_u2 = True
         if user1_info.get("seeking_gender") and user1_info["seeking_gender"] != user2_info.get("gender"): match_u1_to_u2 = False
         if user1_info.get("seeking_age_min") and user2_info.get("age") and user2_info["age"] < user1_info["seeking_age_min"]: match_u1_to_u2 = False
         if user1_info.get("seeking_age_max") and user2_info.get("age") and user2_info["age"] > user1_info["seeking_age_max"]: match_u1_to_u2 = False
         if user1_info.get("seeking_province") and user1_info["seeking_province"] != user2_info.get("province"): match_u1_to_u2 = False
-
         match_u2_to_u1 = True
         if user2_info.get("seeking_gender") and user2_info["seeking_gender"] != user1_info.get("gender"): match_u2_to_u1 = False
         if user2_info.get("seeking_age_min") and user1_info.get("age") and user1_info["age"] < user2_info["seeking_age_min"]: match_u2_to_u1 = False
         if user2_info.get("seeking_age_max") and user1_info.get("age") and user1_info["age"] > user2_info["seeking_age_max"]: match_u2_to_u1 = False
         if user2_info.get("seeking_province") and user2_info["seeking_province"] != user1_info.get("province"): match_u2_to_u1 = False
-
         if match_u1_to_u2 and match_u2_to_u1:
             potential_matches.append(u2)
-
     if potential_matches:
-        
         u2 = potential_matches[0]
         queue.remove(u2)
         if u1 in queue: queue.remove(u1) 
         await connect_users(u1, u2)
         return True
-
-    
     if u1 not in queue:
         queue.append(u1)
     return False
-
-
 async def try_match_random():
     queue = DB["waiting_random"]
     while len(queue) >= 2:
         u1 = queue.popleft()
-        
-        
-        
         if await try_match_users(queue, u1):
             continue
         else:
             queue.appendleft(u1) 
             break
-
 async def try_match_gender():
     male_q = DB["waiting_gender"]["male"]
     female_q = DB["waiting_gender"]["female"]
-    
-    
     if not (male_q and female_q):
         return
-    
-    
     for male_user in list(male_q):
         if await try_match_users(female_q, male_user):
             if male_user in male_q:
                 male_q.remove(male_user)
-
-
 async def try_match_location(queue_name, key):
     queue = DB[queue_name][key]
     while len(queue) >= 2:
@@ -497,35 +454,22 @@ async def try_match_location(queue_name, key):
         else:
             queue.appendleft(u1)
             break
-
 async def try_match_interests():
-    
     all_users_in_queues = set()
     for interest_queue in DB["waiting_interest"].values():
         all_users_in_queues.update(interest_queue)
-
     for u1 in list(all_users_in_queues):
         u1_interests = DB["user_info"][u1].get("interests", set())
-        
-        
         for u2 in list(all_users_in_queues):
             if u1 == u2 or is_blocked(u1, u2): continue
-
             u2_interests = DB["user_info"][u2].get("interests", set())
-            
-            
             if u1_interests.intersection(u2_interests):
-                 
                  if await try_match_users(deque([u2]), u1):
-                    
                     for interest in u1_interests:
                         if u1 in DB["waiting_interest"][interest]: DB["waiting_interest"][interest].remove(u1)
                     for interest in u2_interests:
                         if u2 in DB["waiting_interest"][interest]: DB["waiting_interest"][interest].remove(u2)
                     return 
-
-
-
 def reset_user_state(uid: str):
     user_info = DB["user_info"][uid]
     user_info["status"] = "idle"
@@ -587,7 +531,7 @@ async def message_handler(bot: Robot, msg: Message):
                 await msg.reply("❌ مشکلی در ذخیره عکس شما پیش آمد. لطفاً دوباره تلاش کنید.")
             return
 
-        elif user_info["status"] == "chatting":
+        elif user_info.get("status", "idle") == "chatting":
             peer = DB["active_chats"].get(uid)
             if peer:
                 file_caption = msg.text if msg.text else ""
@@ -601,7 +545,7 @@ async def message_handler(bot: Robot, msg: Message):
                 user_info["status"] = "idle"
                 await send_main_menu(uid, "هم‌صحبت شما از چت خارج شده است. به منوی اصلی بازگشتید.")
             return
-    if user_info["status"] == "chatting":
+    if user_info.get("status", "idle") == "chatting":
         peer = DB["active_chats"].get(uid)
         if not peer: 
             user_info["status"] = "idle"
@@ -745,7 +689,7 @@ async def message_handler(bot: Robot, msg: Message):
         await send_seeking_preferences_menu(uid, f"✅ استان مورد نظر شما: '{text}'.")
         return
     if text == "/start":
-        if user_info["status"] == "chatting":
+        if user_info.get("status", "idle") == "chatting":
             await disconnect_users(uid, "❌ طرف مقابل ربات را مجدداً استارت کرد.")
         reset_user_state(uid)
         await send_main_menu(uid, "👋 سلام! به ربات چت ناشناس خوش آمدی.\nبرای شروع، یکی از گزینه‌ها را انتخاب کن:")
@@ -933,7 +877,7 @@ async def handle_admin_command(bot: Robot, msg: Message, text: str) -> bool:
                 report_found["resolved"] = True
                 report_found["resolution_details"] = f"Resolved by admin {uid} at {datetime.now().isoformat()}"
                 save_reports()
-                reporter = report_found['reporter']
+                reporter = report_found['reporter_id']
                 reported_user = report_found['reported_user']
                 await msg.reply(f"✅ گزارش شماره {report_id_to_resolve} برای کاربر `{reported_user}` رسیدگی شد.")
                 try: 
@@ -985,10 +929,11 @@ async def handle_admin_command(bot: Robot, msg: Message, text: str) -> bool:
         for r in unresolved_reports:
             response += (
                 f"ID: {r['id']}\n"
-                f"  - گزارش دهنده: `{r['reporter']}`\n"
+                f"  - گزارش دهنده: `{r['reporter_id']}`\n"
                 f"  - گزارش شده: `{r['reported_user']}`\n"
-                f"  - دلیل: `{r['reason']}`\n\n"
+                f"  - دلیل: `{r['reason'][:10]}`\n\n"
             )
+            print(response)
         response += "لطفاً شماره گزارشی که می‌خواهید رسیدگی کنید را وارد نمایید یا `لغو` را بفرستید."
         admin_info["admin_state"] = "awaiting_report_action"
         await msg.reply(response)
