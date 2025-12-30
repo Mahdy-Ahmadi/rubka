@@ -1,14 +1,21 @@
-from rubka.asynco import Robot, Message, filters
-import sqlite3,time
-import random,asyncio
-
+from rubka import Robot, Message, filters
+import sqlite3,time,random,asyncio
+from datetime import datetime
+import jdatetime
 #مالک ربات باید در گروه کلمه فعال رو ارسال کنه
 
-bot = Robot("Token",max_msg_age=2000,safeSendMode=True)
+bot = Robot("token",max_msg_age=2000,safeSendMode=True)
 bot.start_save_message()
 
-conn = sqlite3.connect("bot-go.db", check_same_thread=False)
+conn = sqlite3.connect("bot-mabgr.db", check_same_thread=False)
 cursor = conn.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    chat_id TEXT,
+    user_id TEXT PRIMARY KEY
+)
+""")
+conn.commit()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS chats (
     chat_id TEXT PRIMARY KEY,
@@ -55,12 +62,65 @@ CREATE TABLE IF NOT EXISTS rules (
 """)
 conn.commit()
 cursor.execute("""
+CREATE TABLE IF NOT EXISTS user_stats (
+    chat_id TEXT,
+    user_id TEXT,
+    message_count INTEGER DEFAULT 0,
+    PRIMARY KEY (chat_id, user_id)
+)
+""")
+conn.commit()
+cursor.execute("""
 CREATE TABLE IF NOT EXISTS group_lock (
     chat_id TEXT PRIMARY KEY,
     is_locked INTEGER DEFAULT 0
 )
 """)
 conn.commit()
+cursor.execute("""
+    PRAGMA foreign_keys=off;
+""")
+conn.commit()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS admins (
+    chat_id TEXT,
+    user_id TEXT,
+    PRIMARY KEY (chat_id, user_id)
+)
+""")
+conn.commit()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS messages (
+    chat_id TEXT,
+    message_id INTEGER,
+    timestamp INTEGER,
+    PRIMARY KEY (chat_id, message_id)
+)
+""")
+conn.commit()
+
+def add_admin(chat_id, user_id):
+    cursor.execute(
+        "INSERT OR IGNORE INTO admins (chat_id, user_id) VALUES (?, ?)",
+        (chat_id, user_id)
+    )
+    conn.commit()
+
+def remove_admin(chat_id, user_id):
+    cursor.execute(
+        "DELETE FROM admins WHERE chat_id=? AND user_id=?",
+        (chat_id, user_id)
+    )
+    conn.commit()
+
+def is_admin(chat_id, user_id):
+    if is_owner(chat_id, user_id):
+        return True
+    cursor.execute(
+        "SELECT 1 FROM admins WHERE chat_id=? AND user_id=?",
+        (chat_id, user_id)
+    )
+    return cursor.fetchone() is not None
 
 def toggle_group_lock(chat_id, is_locked):
     cursor.execute(
@@ -85,6 +145,15 @@ def get_members(chat_id):
         (chat_id,)
     )
     return [i[0] for i in cursor.fetchall()]
+def increase_message_count(chat_id, user_id):
+    cursor.execute("""
+    INSERT INTO user_stats (chat_id, user_id, message_count, date)
+    VALUES (?, ?, 1, ?)
+    ON CONFLICT(chat_id, user_id)
+    DO UPDATE SET message_count = message_count + 1, date = ?
+    """, (chat_id, user_id, int(time.time()), int(time.time())))
+    conn.commit()
+
 
 TAG_TEXTS,rules_config,RULES_FA = [
     "کجایی رفتی؟",
@@ -298,9 +367,43 @@ def set_all_rules(chat_id, value: bool):
         (int(value), chat_id)
     )
     conn.commit()
+@bot.on_message()
+async def save_message_to_db(bot: Robot, message: Message):
+    cursor.execute("""
+    INSERT OR REPLACE INTO messages (chat_id, message_id, timestamp)
+    VALUES (?, ?, ?)
+    """, (message.chat_id, message.message_id, int(time.time())))
+    conn.commit()
+@bot.on_message(filters.text_contains("حذف"))
+async def delete_messages(bot: Robot, message: Message):
+    if not is_admin(message.chat_id, message.sender_id):
+        return
+    parts = message.text.split()
+    if len(parts) != 2 or not parts[1].isdigit():
+        return
+    num_messages = int(parts[1])
+    if num_messages <= 0:
+        return await message.reply("❗ تعداد پیام‌ها باید بزرگتر از صفر باشد.")
+    cursor.execute("""
+    SELECT message_id FROM messages WHERE chat_id=? ORDER BY timestamp DESC LIMIT ?
+    """, (message.chat_id, num_messages))
+    messages = cursor.fetchall()
+    if not messages:
+        return await message.reply("❗ هیچ پیام قابل حذف در این گروه وجود ندارد.")
+    for (message_id,) in messages:
+        try:
+            await bot.delete_message(message.chat_id, message_id)
+            cursor.execute("""
+            DELETE FROM messages WHERE chat_id=? AND message_id=?
+            """, (message.chat_id, message_id))
+            conn.commit()
+        except Exception as e:
+            print(f"Error deleting message {message_id}: {e}")
+    await message.reply(f"✅ {num_messages} پیام اخیر حذف شد.")
+
 @bot.on_message(filters.text_contains("قفل گروه"))
 async def lock_group(bot: Robot, message: Message):
-    if not is_owner(message.chat_id, message.sender_id):return
+    if not is_admin(message.chat_id, message.sender_id):return
     try:
         parts = message.text.split()
         if len(parts) >= 3 and parts[2].isdigit():lock_duration = int(parts[2])
@@ -310,27 +413,127 @@ async def lock_group(bot: Robot, message: Message):
         await asyncio.sleep(lock_duration)
         toggle_group_lock(message.chat_id, 0)
         await message.reply("✅ مدت زمان قفل گروه تمام شد. قفل گروه باز شد.")
-        
     except ValueError:
         await message.reply("❗ لطفا مدت زمان قفل گروه را به درستی وارد کنید.")
 
 
 @bot.on_message(filters.text_equals("باز کردن قفل گروه"))
 async def unlock_group(bot: Robot, message: Message):
-    if not is_owner(message.chat_id, message.sender_id):return
+    if not is_admin(message.chat_id, message.sender_id):return
     toggle_group_lock(message.chat_id, 0)
     await message.reply("✅ قفل گروه باز شد. پیام‌ها قابل ارسال هستند.")
-
+@bot.on_message(filters.text_equals("افزودن ادمین"))
+async def add_admin_cmd(bot: Robot, message: Message):
+    if not is_admin(message.chat_id, message.sender_id):
+        return
+    if not message.reply_to_message_id:
+        return await message.reply("❗ روی پیام کاربر ریپلای کن")
+    info = await bot.get_message(message.chat_id, message.reply_to_message_id)
+    user_id = info["sender_id"]
+    add_admin(message.chat_id, user_id)
+    await message.reply(f"✅ [کاربر]({user_id}) ادمین کمکی شد")
+@bot.on_message(filters.text_equals("حذف ادمین"))
+async def remove_admin_cmd(bot: Robot, message: Message):
+    if not is_admin(message.chat_id, message.sender_id):
+        return
+    if not message.reply_to_message_id:
+        return await message.reply("❗ روی پیام کاربر ریپلای کن")
+    info = await bot.get_message(message.chat_id, message.reply_to_message_id)
+    user_id = info["sender_id"]
+    remove_admin(message.chat_id, user_id)
+    await message.reply(f"❌ [کاربر]({user_id}) از ادمینی حذف شد")
+@bot.on_message(filters.text_equals("لیست ادمین"))
+async def list_admins(bot: Robot, message: Message):
+    if not is_admin(message.chat_id, message.sender_id):
+        return
+    cursor.execute(
+        "SELECT user_id FROM admins WHERE chat_id=?",
+        (message.chat_id,)
+    )
+    admins = cursor.fetchall()
+    if not admins:
+        return await message.reply("❗ ادمین کمکی وجود ندارد")
+    text = "🛡️ **ادمین‌های کمکی :**\n\n"
+    for (uid,) in admins:
+        text += f">- [کاربر]({uid})\n"
+    await message.reply(text)
 @bot.on_message()
 async def check_group_lock(bot: Robot, message: Message):
     if not chat_exists(message.chat_id):return
     if is_group_locked(message.chat_id):
         await message.delete()
+@bot.on_message(filters.text_equals("آمار"))
+async def user_stats(bot: Robot, message: Message):
+    if not message.reply_to_message_id:
+        return await message.reply("❗ روی پیام کاربر ریپلای کن")
+
+    info = await bot.get_message(message.chat_id, message.reply_to_message_id)
+    user_id = info["sender_id"]
+    cursor.execute("""
+    SELECT message_count FROM user_stats
+    WHERE chat_id=? AND user_id=?
+    """, (message.chat_id, user_id))
+    row = cursor.fetchone()
+    count = row[0] if row else 0
+    await message.reply(
+        f"📊 **آمار کاربر**\n\n"
+        f"👤 [کاربر]({user_id})\n"
+        f"💬 تعداد پیام‌ها: **{count}**"
+    )
+@bot.on_message(filters.text_equals("آمار گروه"))
+async def group_stats(bot: Robot, message: Message):
+    if not is_admin(message.chat_id, message.sender_id): return
+
+    group_name = await message.name
+    now = jdatetime.datetime.now()
+    time_text = now.strftime("%Y/%m/%d | %H:%M")
+    cursor.execute("SELECT SUM(message_count) FROM user_stats WHERE chat_id=?", (message.chat_id,))
+    total_messages = cursor.fetchone()[0] or 0
+    cursor.execute("SELECT COUNT(*) FROM user_stats WHERE chat_id=?", (message.chat_id,))
+    active_users = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM admins WHERE chat_id=?", (message.chat_id,))
+    admin_count = cursor.fetchone()[0] + 1
+    cursor.execute("SELECT COUNT(*) FROM mutes WHERE chat_id=?", (message.chat_id,))
+    muted_users = cursor.fetchone()[0]
+    cursor.execute("SELECT user_id, message_count FROM user_stats WHERE chat_id=? ORDER BY message_count DESC LIMIT 3", (message.chat_id,))
+    top_users = cursor.fetchall()
+    medals = ["🥇", "🥈", "🥉"]
+    top_text = "\n".join(
+        f">{medals[i]} [Username]({uid}) — {count} Text" if i < len(medals) else f"> [Username]({uid}) — {count} Text"
+        for i, (uid, count) in enumerate(top_users)
+    )
+    cursor.execute("SELECT COUNT(*) FROM user_stats WHERE chat_id=? AND date > ?", (message.chat_id, int(time.time()) - 86400))
+    daily_messages = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM user_stats WHERE chat_id=? AND date > ?", (message.chat_id, int(time.time()) - 604800))
+    weekly_messages = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM users WHERE chat_id=?", (message.chat_id,))
+    new_members = cursor.fetchone()[0]
+    today_start = int(time.mktime(jdatetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
+    cursor.execute("SELECT user_id FROM user_stats WHERE chat_id=? AND message_count > 0 AND date >= ?", (message.chat_id, today_start))
+    new_today_users = cursor.fetchall()
+    new_today_count = len(new_today_users)
+    await message.reply(
+        f"📊 **گزارش آماری — “{group_name}”**\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🕒 **زمان :** {time_text}\n"
+        f"👥 **اعضای فعال :** {active_users}\n"
+        f"🛡️ **مدیران :** {admin_count}\n"
+        f"💬 **کل پیام‌ها :** {total_messages}\n"
+        f"🔇 **کاربران سکوت‌شده :** {muted_users}\n"
+        f"📈 **پیام‌های روزانه :** {daily_messages}\n"
+        f"📅 **پیام‌های هفتگی :** {weekly_messages}\n"
+        f"👤 **کاربران جدید :** {new_members}\n"
+        f"🌟 **کاربران جدید امروز :** {new_today_count}\n\n"
+        f"🏆 **مشارکت‌کنندگان برتر :**\n{top_text}"
+    )
+
+
 @bot.on_message()
 async def user_message(bot, message: Message):
     if not chat_exists(message.chat_id):
         return
     save_member(message.chat_id, message.sender_id)
+    increase_message_count(message.chat_id, message.sender_id)
     cursor.execute("SELECT mute_time, mute_duration, is_permanent FROM mutes WHERE chat_id=? AND user_id=?", (message.chat_id, message.sender_id))
     mute_info = cursor.fetchone()
     if mute_info:
@@ -347,27 +550,37 @@ async def user_message(bot, message: Message):
             conn.commit()
 
 @bot.on_message(filters.text_equals("تگ"))
-async def tag_users(bot:Robot, message: Message):
-    if not is_owner(message.chat_id, message.sender_id):return False
+async def tag_users(bot: Robot, message: Message):
+    if not is_admin(message.chat_id, message.sender_id):
+        return False
     members = get_members(message.chat_id)
     if not members:return await message.reply("❗ کاربری ذخیره نشده")
+    parts = message.text.split()
     chunk_size = 20
-    chunks = [members[i:i + chunk_size] for i in range(0, len(members), chunk_size)]
+    if len(parts) == 2 and parts[1].isdigit():
+        try:
+            chunk_size = int(parts[1])
+            if chunk_size <= 0:
+                return await message.reply("❗ تعداد تگ باید بزرگتر از 0 باشد.")
+        except ValueError:
+            pass
+    if len(members) <= chunk_size:
+        chunks = [members]
+    else:
+        chunks = [members[i:i + chunk_size] for i in range(0, len(members), chunk_size)]
     for group in chunks:
-        text = " , ".join(
-    f"[{random_tag_text()}]({uid})"
-    for uid in group
-)
+        text = " , ".join(f"[{random_tag_text()}]({uid})" for uid in group)
         await bot.send_message(
             chat_id=message.chat_id,
             text=text,
             reply_to_message_id=message.message_id
         )
+
+
 @bot.on_message()
 async def mute_user(bot: Robot, message: Message):
     if not message.text.startswith("سکوت"): return
-    if not is_owner(message.chat_id, message.sender_id):
-        return
+    if not is_admin(message.chat_id, message.sender_id): return
     try:
         parts = message.text.split()
         if len(parts) == 2:
@@ -385,6 +598,7 @@ async def mute_user(bot: Robot, message: Message):
             is_permanent = 1
         else:
             return await message.reply("❗ لطفا مدت زمان سکوت یا 'دائمی' را وارد کنید.")
+        
         info = await bot.get_message(message.chat_id, message.reply_to_message_id)
         target_id = info["sender_id"]
         cursor.execute(
@@ -407,41 +621,36 @@ async def mute_user(bot: Robot, message: Message):
 
 @bot.on_message(filters.text_equals("پاکسازی سکوت"))
 async def clear_mute_list(bot: Robot, message: Message):
-    if not is_owner(message.chat_id, message.sender_id):return
+    if not is_admin(message.chat_id, message.sender_id): return
     cursor.execute("DELETE FROM mutes WHERE chat_id=?", (message.chat_id,))
     conn.commit()
-    await message.reply("✅ لیست سکوت پاک شد")
+    await message.reply("✅ **لیست سکوت با موفقیت پاک شد**")
 
 @bot.on_message(filters.text_equals("حذف سکوت"))
 async def unmute_command(bot: Robot, message: Message):
-    if not is_owner(message.chat_id, message.sender_id):
-        return
+    if not is_admin(message.chat_id, message.sender_id): return
     if not message.reply_to_message_id:
-        return await message.reply("❗ روی پیام کاربر ریپلای کن")
+        return await message.reply("❗ **لطفاً روی پیام کاربر ریپلای کنید تا سکوت آن حذف شود**")
     info = await bot.get_message(message.chat_id, message.reply_to_message_id)
     target_id = info["sender_id"]
     unmute_user_db(message.chat_id, target_id)
+    await message.reply("✅ **سکوت کاربر با موفقیت حذف شد**")
+
     await message.reply(f"🔊 سکوت [کاربر]({target_id}) برداشته شد")
 @bot.on_message(filters.text_equals("لیست سکوت"))
 async def mute_list(bot: Robot, message: Message):
-    if not is_owner(message.chat_id, message.sender_id):
-        return
-    users = get_muted_users(message.chat_id)
-    if not users:
-        return await message.reply("✅ لیست سکوت خالی است")
-    text = "🔇**کاربران سکوت‌شده** :\n\n"
-    text += "\n".join(f">- [کاربر]({uid})" for uid in users)
-    await message.reply(text)
+    if not is_admin(message.chat_id, message.sender_id): return
+    muted_users = get_muted_users(message.chat_id)
+    if not muted_users: return await message.reply("✅ لیست سکوت خالی است")
+    response_text = "🔇 **کاربران سکوت‌شده** :\n\n" + "\n".join(f">- [کاربر]({uid})" for uid in muted_users)
+    await message.reply(response_text)
 
 @bot.on_message(filters.text_contains_any(["نصب", "فعال", "مالک"]))
 async def install(bot, message: Message):
-    if chat_exists(message.chat_id):
-        return False
+    if chat_exists(message.chat_id): return False
     set_owner(message.chat_id, message.sender_id)
-    await message.reply(
-        f"✅ ربات در گروه {await message.name} نصب شد\n"
-        "👑 شما مالک این چت هستید"
-    )
+    await message.reply(f"✅ ربات با موفقیت در گروه {await message.name} نصب شد\n👑 اکنون شما مالک این چت هستید")
+
 
 def check_rules(message: Message, rules: dict):
     violations = []
@@ -508,17 +717,18 @@ async def info(bot, message):
 
 @bot.on_message()
 async def admin_commands(bot, message: Message):
-    if not is_owner(message.chat_id, message.sender_id):
+    if not is_admin(message.chat_id, message.sender_id):
         return
     text = message.text.strip()
     if text == "وضعیت":
         rules = load_rules(message.chat_id)
         state = "\n".join(
-            f"> {RULES_FA[k]}: {'✅ روشن' if v else '❌ خاموش'}"
+            f"> {RULES_FA[k]}: {'✓ فعال' if v else '× غیرفعال'}"
             for k, v in rules.items()
         )
         return await message.reply(
-            f"📊 وضعیت قوانین گروه :\n\n{state}"
+            f"📊 **وضعیت قوانین گروه ** --{await message.name}-- :\n\n{state}\n\n"
+            f"⚙️ برای تغییر وضعیت قوانین، از دستورهای مرتبط استفاده کنید."
         )
     if text == "خاموش همه":
         set_all_rules(message.chat_id, False)
