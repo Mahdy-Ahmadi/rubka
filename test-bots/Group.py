@@ -7,7 +7,7 @@ import jdatetime
 bot = Robot("token",max_msg_age=2000,safeSendMode=True)
 bot.start_save_message()
 
-conn = sqlite3.connect("bot-mabgr.db", check_same_thread=False)
+conn = sqlite3.connect("bot-ma2.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
@@ -61,15 +61,18 @@ CREATE TABLE IF NOT EXISTS rules (
 )
 """)
 conn.commit()
+cursor.execute("DROP TABLE IF EXISTS user_stats")
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS user_stats (
+CREATE TABLE user_stats (
     chat_id TEXT,
     user_id TEXT,
     message_count INTEGER DEFAULT 0,
+    date INTEGER,
     PRIMARY KEY (chat_id, user_id)
 )
 """)
 conn.commit()
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS group_lock (
     chat_id TEXT PRIMARY KEY,
@@ -153,6 +156,7 @@ def increase_message_count(chat_id, user_id):
     DO UPDATE SET message_count = message_count + 1, date = ?
     """, (chat_id, user_id, int(time.time()), int(time.time())))
     conn.commit()
+
 
 
 TAG_TEXTS,rules_config,RULES_FA = [
