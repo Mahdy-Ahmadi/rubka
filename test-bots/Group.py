@@ -374,6 +374,44 @@ async def save_message_to_db(bot: Robot, message: Message):
     VALUES (?, ?, ?)
     """, (message.chat_id, message.message_id, int(time.time())))
     conn.commit()
+@bot.on_message(filters.text_equals("بن"))
+async def ban_user(bot: Robot, message: Message):
+    if not is_admin(message.chat_id, message.sender_id):
+        return
+    if not message.reply_to_message_id:
+        await message.reply("⚠️ لطفاً روی پیام کاربر مورد نظر ریپلای کنید.")
+        return
+    data = await bot.get_message(
+        chat_id=message.chat_id,
+        message_id=message.reply_to_message_id
+    )
+    user_id = data.get("sender_id")
+    if not user_id:
+        return
+    if await bot.ban_member_chat(chat_id=message.chat_id, user_id=user_id):
+        await message.reply(
+            f">🚫 **[کاربر]({user_id}) با موفقیت از گروه اخراج شد**\n"
+        )
+
+@bot.on_message(filters.text_equals("آن بن"))
+async def unban_user(bot: Robot, message: Message):
+    if not is_admin(message.chat_id, message.sender_id):
+        return
+    if not message.reply_to_message_id:
+        await message.reply("⚠️ لطفاً روی پیام کاربر مورد نظر ریپلای کنید.")
+        return
+    data = await bot.get_message(
+        chat_id=message.chat_id,
+        message_id=message.reply_to_message_id
+    )
+    user_id = data.get("sender_id")
+    if not user_id:
+        return
+    if await bot.unban_chat_member(chat_id=message.chat_id, user_id=user_id):
+        await message.reply(
+            f">✅ **[کاربر]({user_id}) از لیست مسدودشده‌ها خارج شد**\n"
+        )
+
 @bot.on_message(filters.text_contains("حذف"))
 async def delete_messages(bot: Robot, message: Message):
     if not is_admin(message.chat_id, message.sender_id):
