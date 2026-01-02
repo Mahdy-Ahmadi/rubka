@@ -3,11 +3,13 @@ import time,random,asyncio,re,aiohttp,asyncio,jdatetime,aiosqlite
 
 
 
-Token = "token" #توکن ربات
-Data_name = "bot-database.db"
+Token = "Token"  #توکن ربات
+Data_name = "botdatabase.db"
+db_lock = asyncio.Lock()
 
 
 bot = Robot(Token,max_msg_age=2000,safeSendMode=True)
+
 bot.start_save_message()
 async def connect_db():return await aiosqlite.connect(Data_name)
 async def create_tables():
@@ -206,13 +208,25 @@ async def is_group_locked(chat_id):
         return result and result[0] == 1
 
 async def save_member(chat_id, user_id):
-    db = await connect_db()
-    async with db.cursor() as cursor:
-        await cursor.execute(
-            "INSERT OR IGNORE INTO members (chat_id, user_id) VALUES (?, ?)",
-            (chat_id, user_id)
-        )
-        await db.commit()
+    attempt_count = 0
+    while attempt_count < 3:
+        try:
+            db = await connect_db()
+            async with db.cursor() as cursor:
+                await cursor.execute(
+                    "INSERT OR IGNORE INTO members (chat_id, user_id) VALUES (?, ?)",
+                    (chat_id, user_id)
+                )
+                await db.commit()
+            await db.close()
+            break
+        except aiosqlite.OperationalError as e:
+            print(f"Database is locked. Attempt {attempt_count + 1}/3...")
+            attempt_count += 1
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            break
+    else:print("Failed to save member after 3 attempts.")
 
 async def get_members(chat_id):
     db = await connect_db()
@@ -225,15 +239,23 @@ async def get_members(chat_id):
         return [i[0] for i in members]
 
 async def increase_message_count(chat_id, user_id):
-    db = await connect_db()
-    async with db.cursor() as cursor:
-        await cursor.execute("""
-        INSERT INTO user_stats (chat_id, user_id, message_count, date)
-        VALUES (?, ?, 1, ?)
-        ON CONFLICT(chat_id, user_id)
-        DO UPDATE SET message_count = message_count + 1, date = ?
-        """, (chat_id, user_id, int(time.time()), int(time.time())))
-        await db.commit()
+    try:
+        db = await connect_db()
+        async with db.cursor() as cursor:
+            await db.execute('BEGIN TRANSACTION')
+            try:
+                await cursor.execute("""
+                INSERT INTO user_stats (chat_id, user_id, message_count, date)
+                VALUES (?, ?, 1, ?)
+                ON CONFLICT(chat_id, user_id)
+                DO UPDATE SET message_count = message_count + 1, date = ?
+                """, (chat_id, user_id, int(time.time()), int(time.time())))
+                await db.commit()
+            except aiosqlite.DatabaseError as e:
+                await db.rollback()
+                print(f"Database error occurred: {e}")
+    except Exception as e:print(f"An unexpected error occurred: {e}")
+    finally:await db.close()
 
 TAG_TEXTS,rules_config,RULES_FA = [
     "کجایی رفتی؟",
