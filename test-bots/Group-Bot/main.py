@@ -7,7 +7,10 @@ Data_name = "bot-database.db"
 db_lock = asyncio.Lock()
 
 bot = Robot(Token,max_msg_age=2000,safeSendMode=True)
-
+bot.start_save_message()
+@bot.on_message()
+async def save_message(bot,message):return
+    
 bot.start_save_message()
 async def connect_db():return await aiosqlite.connect(Data_name)
 async def create_tables():
@@ -1296,6 +1299,23 @@ async def info(bot, message: Message):
     if text in ["get", "اطلاعات", "info"] and reply_id:
         info = await bot.get_message(message.chat_id, reply_id)
         return await bot.send_message(chat_id=message.chat_id, text=f"**اطلاعات پیام:**\n>{info}", reply_to_message_id=reply_id)
+
+
+@bot.on_message(filters.text_equals("بن"))
+async def info(bot: Robot, message: Message):
+    if await is_admin(message.chat_id, message.sender_id):
+        return
+    data = await bot.get_message(message.chat_id, message.reply_to_message_id)
+    if await bot.ban_member_chat(chat_id=message.chat_id,user_id=data['sender_id']):
+        await message.reply(f"> [کاربر]({data['sender_id']}) مورد نظر از گروه اخراج شد")
+
+@bot.on_message(filters.text_equals("آن بن"))
+async def info2(bot: Robot, message: Message):
+    if await is_admin(message.chat_id, message.sender_id):
+        return
+    data = await bot.get_message(message.chat_id, message.reply_to_message_id)
+    if await bot.unban_chat_member(chat_id=message.chat_id,user_id=data['sender_id']):
+        await message.reply(f"[کاربر]({data['sender_id']}) مورد نظر از لیست بن خارج شد")
 
 @bot.on_message()
 async def admin_commands(bot: Robot, message: Message):
