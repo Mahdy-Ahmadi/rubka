@@ -1,6 +1,6 @@
-from rubka import Robot, Message, filters
+from rubka import Robot, Message, filters,ChatKeypadBuilder
 import time,random,asyncio,re,aiohttp,asyncio,jdatetime,aiosqlite,json,os
-
+from rubka.exceptions import *
 
 Token = "Token"
 Data_name = "bot-database.db"
@@ -8,6 +8,119 @@ db_lock = asyncio.Lock()
 
 bot = Robot(Token,max_msg_age=2000,safeSendMode=True)
 
+
+#======= بخش مالکان در پیوی ربات ==========
+chat_keypad = (
+    ChatKeypadBuilder()
+    .row(
+        ChatKeypadBuilder().button(id="btn_help", text="راهنما"),
+        ChatKeypadBuilder().button(id="btn_groups", text="گروه‌های من")
+    )
+    .build()
+)
+@bot.on_message(filters.is_command.start & filters.is_private)
+async def start_handler(bot: Robot, message: Message):
+    await message.reply(
+        text="👋 خوش آمدید!",
+        chat_keypad=chat_keypad,
+        chat_keypad_type="New"
+    )
+@bot.on_callback('btn_help')
+async def btn_help(bot: Robot, message: Message):
+    await message.answer("⚠️ این بخش در حال توسعه است.")
+@bot.on_callback('btn_groups')
+async def btn_groups(bot: Robot, message: Message):
+    db = await connect_db()
+    try:
+        async with db.cursor() as cursor:
+            await cursor.execute(
+                "SELECT chat_id FROM chats WHERE owner_id = ?",
+                (message.sender_id,)
+            )
+            groups = await cursor.fetchall()
+        if not groups:
+            return await message.answer(
+                "❌ شما مالک هیچ گروهی نیستید.\n\n"
+                "ابتدا ربات را به گروه اضافه کرده، دسترسی ادمین بدهید "
+                "و سپس داخل گروه کلمه **فعال** را ارسال کنید."
+            )
+        keyboard = ChatKeypadBuilder()
+        for (chat_id,) in groups:
+            name = await bot.get_name(chat_id)
+            keyboard.row(
+                ChatKeypadBuilder().button(
+                    id=f"group_info:{chat_id}",
+                    text=name
+                ),
+                ChatKeypadBuilder().button(
+                    id=f"group_delete:{chat_id}",
+                    text="🗑 حذف"
+                )
+            )
+        await message.reply(
+            "📂 گروه‌هایی که مالک آن‌ها هستید:",
+            chat_keypad=keyboard.build(),
+            chat_keypad_type="New"
+        )
+    finally:
+        await db.close()
+@bot.on_callback()
+async def handle_group_callbacks(bot: Robot, message: Message):
+    button_id = message.aux_data.button_id
+    if ":" not in button_id:
+        return
+    action, chat_id = button_id.split(":", 1)
+    if action == "group_info":
+        info = await get_full_group_info(chat_id)
+        await message.reply(
+            f"📌 **اطلاعات گروه**\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🆔 چت آیدی: `{chat_id}`\n"
+            f"📡 وضعیت: {info['active']}\n"
+            f"👥 اعضا: {info['members']}\n"
+            f"🔇 سکوت‌شده‌ها: {info['muted']}\n"
+            f"⚠️ اخطاردارها: {info['warned']}\n"
+            f"💬 کل پیام‌ها: {info['total_messages']}\n\n"
+            f"⚙️ تنظیمات:\n"
+            f"> سخنگو: {info['speaker']}\n"
+            f"> حالت سختگیر: {info['strict']}\n"
+            f"> سقف اخطار: {info['warning_limit']}\n"
+            f"> قفل گروه: {info['lock']}\n"
+            f"> سایلنت خودکار: {info['silent']}"
+        )
+    elif action == "group_delete":
+        name = await bot.get_name(chat_id)
+        await message.reply(
+            f"🚨 آیا مطمئن هستید اطلاعات گروه **{name}** حذف شود؟",
+            chat_keypad=(
+                ChatKeypadBuilder()
+                .row(ChatKeypadBuilder().button(
+                    id=f"confirm_delete:{chat_id}",
+                    text="✅ بله، حذف کن"
+                ))
+                .row(ChatKeypadBuilder().button(
+                    id="cancel_delete",
+                    text="❌ انصراف"
+                ))
+                .build()
+            ),
+            chat_keypad_type="New"
+        )
+    elif action == "confirm_delete":
+        await reset_group_data(chat_id)
+        await message.reply(
+            f"✅ اطلاعات گروه `{chat_id}` با موفقیت حذف شد.",
+            chat_keypad=chat_keypad,
+            chat_keypad_type="New"
+        )
+    elif button_id == "cancel_delete":
+        await message.reply(
+            "❌ عملیات لغو شد.",
+            chat_keypad=chat_keypad,
+            chat_keypad_type="New"
+        )
+
+#======= بخش مدیریت گروه ==========
 bot.start_save_message()
 async def connect_db():return await aiosqlite.connect(Data_name)
 async def create_tables():
@@ -29,7 +142,10 @@ async def create_tables():
         )
         """)
         await db.commit()
-
+        await cursor.execute("""
+                    ALTER TABLE silent_mode ADD COLUMN mute_duration INTEGER DEFAULT 60;
+                """)
+        await db.commit()
         await cursor.execute("""
         CREATE TABLE IF NOT EXISTS warning_threshold (
             chat_id TEXT PRIMARY KEY,
@@ -54,7 +170,13 @@ async def create_tables():
         )
         """)
         await db.commit()
-
+        await cursor.execute("""
+        CREATE TABLE IF NOT EXISTS silent_mode (
+            chat_id TEXT PRIMARY KEY,
+            is_enabled INTEGER DEFAULT 0
+        )
+        """)
+        await db.commit()
         await cursor.execute("""
         CREATE TABLE IF NOT EXISTS mutes (
             chat_id TEXT,
@@ -135,6 +257,14 @@ async def create_tables():
             message_id INTEGER,
             timestamp INTEGER,
             PRIMARY KEY (chat_id, message_id)
+        )
+        """)
+        await db.commit()
+        await cursor.execute("""
+        CREATE TABLE IF NOT EXISTS silent_mode (
+            chat_id TEXT PRIMARY KEY,
+            is_enabled INTEGER DEFAULT 0,
+            mute_duration INTEGER DEFAULT 60
         )
         """)
         await db.commit()
@@ -356,9 +486,13 @@ async def get_full_group_info(chat_id):
         await cursor.execute("SELECT is_locked FROM group_lock WHERE chat_id=?", (chat_id,))
         lock = await cursor.fetchone()
         lock_status = "قفل" if lock and lock[0] == 1 else "باز"
+        await cursor.execute("SELECT is_enabled FROM silent_mode WHERE chat_id=?", (chat_id,))
+        silent_mode = await cursor.fetchone()
+        silent_status = "فعال" if silent_mode and silent_mode[0] == 1 else "غیرفعال"
         await cursor.execute("SELECT rule_key, rule_value FROM rules WHERE chat_id=?", (chat_id,))
         rules = await cursor.fetchall()
     await db.close()
+    
     return {
         "owner": chat_row[0] if chat_row else "نامشخص",
         "active": "فعال" if chat_row and chat_row[1] == 1 else "غیرفعال",
@@ -371,8 +505,10 @@ async def get_full_group_info(chat_id):
         "strict": strict_status,
         "warning_limit": warning_limit,
         "lock": lock_status,
+        "silent": silent_status,
         "rules": rules
     }
+
 
 async def increase_message_count(chat_id, user_id):
     try:
@@ -541,14 +677,15 @@ TAG_TEXTS,rules_config,RULES_FA = [
     "gif":"گیف"
 }
 
-async def mute_user_db(chat_id, user_id):
+async def mute_user_db(chat_id, user_id, mute_duration):
     db = await connect_db()
     async with db.cursor() as cursor:
         await cursor.execute(
-            "INSERT OR IGNORE INTO mutes (chat_id, user_id) VALUES (?, ?)",
-            (chat_id, user_id)
+            "INSERT OR REPLACE INTO mutes (chat_id, user_id, mute_time, mute_duration, is_permanent) VALUES (?, ?, ?, ?, ?)",
+            (chat_id, user_id, int(time.time()), mute_duration, 0)
         )
         await db.commit()
+
 
 async def unmute_user_db(chat_id, user_id):
     db = await connect_db()
@@ -634,6 +771,23 @@ async def set_all_rules(chat_id, value: bool):
             (int(value), chat_id)
         )
         await db.commit()
+async def is_silent_mode(chat_id):
+    db = await connect_db()
+    async with db.cursor() as cursor:
+        await cursor.execute(
+            "SELECT is_enabled FROM silent_mode WHERE chat_id=?",
+            (chat_id,)
+        )
+        row = await cursor.fetchone()
+        return row and row[0] == 1
+async def set_silent_mode(chat_id, value: bool):
+    db = await connect_db()
+    async with db.cursor() as cursor:
+        await cursor.execute(
+            "INSERT OR REPLACE INTO silent_mode (chat_id, is_enabled) VALUES (?, ?)",
+            (chat_id, int(value))
+        )
+        await db.commit()
 
 @bot.on_message()
 async def save_message_to_db(bot: Robot, message: Message):
@@ -669,12 +823,13 @@ async def ban_user(bot: Robot, message: Message):
         message_id=message.reply_to_message_id
     )
     user_id = data.get("sender_id")
-    if not user_id:
-        return
-    if await bot.ban_member_chat(chat_id=message.chat_id, user_id=user_id):
-        await message.reply(
-            f">🚫 **[کاربر]({user_id}) با موفقیت از گروه اخراج شد**\n"
-        )
+    if not user_id:return
+    try:
+        if await bot.ban_member_chat(chat_id=message.chat_id, user_id=user_id):
+            await message.reply(
+                f">🚫 **[کاربر]({user_id}) با موفقیت از گروه اخراج شد**\n"
+            )
+    except InvalidAccessError:await message.reply(f">ربات دسترسی انجام این کار را ندارد")
 
 @bot.on_message(filters.text_equals("آن بن"))
 async def unban_user(bot: Robot, message: Message):
@@ -689,10 +844,13 @@ async def unban_user(bot: Robot, message: Message):
     user_id = data.get("sender_id")
     if not user_id:
         return
-    if await bot.unban_chat_member(chat_id=message.chat_id, user_id=user_id):
-        await message.reply(
-            f">✅ **[کاربر]({user_id}) از لیست مسدودشده‌ها خارج شد**\n"
-        )
+    try:
+        if await bot.unban_chat_member(chat_id=message.chat_id, user_id=user_id):
+            await message.reply(
+                f">✅ **[کاربر]({user_id}) از لیست مسدودشده‌ها خارج شد**\n"
+            )
+    except InvalidAccessError:
+        await message.reply(f">ربات دسترسی انجام این کار را ندارد")
 
 @bot.on_message(filters.text_equals("حالت سختگیر روشن"))
 async def strict_on(bot: Robot, message: Message):
@@ -1064,32 +1222,31 @@ async def group_stats(bot: Robot, message: Message):
 async def show_group_info(bot: Robot, message: Message):
     if not await is_admin(message.chat_id, message.sender_id):
         return
-
     info = await get_full_group_info(message.chat_id)
-
     rules_text = "\n".join(
-        f"> {RULES_FA.get(k, k)} : {'فعال' if v else 'غیرفعال'}"
+        f"> {RULES_FA.get(k, k)} : {'روشن' if v else 'خاموش'}"
         for k, v in info["rules"]
     ) or "—"
-
     await message.reply(
         f"📌 **اطلاعات کامل گروه**\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"🆔 چت آیدی: `{message.chat_id}`\n"
-        f"👑 مالک: [مالک گروه]({info['owner']})\n"
-        f"📡 وضعیت: {info['active']}\n"
-        f"🛡️ ادمین‌ها: {info['admins']}\n"
-        f"👥 اعضای ذخیره‌شده: {info['members']}\n"
-        f"🔇 سکوت‌شده‌ها: {info['muted']}\n"
-        f"⚠️ کاربران اخطاردار: {info['warned']}\n"
-        f"💬 مجموع پیام‌ها: {info['total_messages']}\n\n"
-        f"⚙️ تنظیمات:\n"
-        f"> سخنگو: {info['speaker']}\n"
-        f"> حالت سختگیر: {info['strict']}\n"
-        f"> سقف اخطار: {info['warning_limit']}\n"
-        f"> وضعیت قفل گروه: {info['lock']}\n\n"
+        f"👑 مالک : [مالک گروه]({info['owner']})\n"
+        f"📡 وضعیت : {info['active']}\n"
+        f"🛡️ ادمین‌ها : {info['admins']}\n"
+        f"👥 اعضای ذخیره‌شده : {info['members']}\n"
+        f"🔇 سکوت‌شده‌ها : {info['muted']}\n"
+        f"⚠️ کاربران اخطاردار : {info['warned']}\n"
+        f"💬 مجموع پیام‌ها : {info['total_messages']}\n\n"
+        f"⚙️ تنظیمات :\n"
+        f"> سخنگو : {info['speaker']}\n"
+        f"> حالت سختگیر : {info['strict']}\n"
+        f"> سقف اخطار : {info['warning_limit']}\n"
+        f"> وضعیت قفل گروه : {info['lock']}\n"
+        f"> وضعیت سایلنت خودکار : {info['silent']}\n\n"
         f"📜 قوانین فعال:\n{rules_text}"
     )
+
 
 @bot.on_message()
 async def user_messages(bot, message: Message):
@@ -1185,7 +1342,7 @@ async def mute_user(bot: Robot, message: Message):
             await cursor.execute("DELETE FROM mutes WHERE chat_id=? AND user_id=?", (message.chat_id, target_id))
             await db.commit()
             await db.close()
-            await message.reply(f"⏳ مدت زمان سکوت برای کاربر [کاربر]({target_id}) تمام شد.")
+            await message.reply(f"⏳ مدت زمان سکوت برای [کاربر]({target_id}) تمام شد.")
     except ValueError as e:
         print(e)
         await message.reply("❗ لطفا مدت زمان سکوت را به درستی وارد کنید.")
@@ -1206,8 +1363,7 @@ async def unmute_command(bot: Robot, message: Message):
         return await message.reply("❗ **لطفاً روی پیام کاربر مورد نظر ریپلای کنید تا سکوت آن حذف شود**")
     info = await bot.get_message(message.chat_id, message.reply_to_message_id)
     target_id = info["sender_id"]
-    await unmute_user_db(message.chat_id, target_id)  
-    await message.reply("✅ **سکوت کاربر با موفقیت حذف شد**")
+    await unmute_user_db(message.chat_id, target_id)
     await message.reply(f"🔊 سکوت [کاربر]({target_id}) برداشته شد")
 
 @bot.on_message(filters.text_equals("لیست سکوت"))
@@ -1217,13 +1373,31 @@ async def mute_list(bot: Robot, message: Message):
     if not muted_users:return await message.reply("✅ لیست سکوت خالی است")
     response_text = "🔇 **کاربران سکوت‌شده** :\n\n" + "\n".join(f">- [کاربر]({uid})" for uid in muted_users)
     await message.reply(response_text)
+@bot.on_message(filters.text_contains("تایم سایلنت"))
+async def change_silent_duration(bot: Robot, message: Message):
+    if not await is_admin(message.chat_id, message.sender_id):
+        return await message.reply("❗ شما ادمین گروه نیستید.")
+    parts = message.text.split()
+    if len(parts) != 2 or not parts[1].isdigit():
+        return await message.reply("❗ لطفاً مدت زمان سکوت را به درستی وارد کنید. مثال: `تایم سایلنت 120`")
+    mute_duration = int(parts[1])
+    if mute_duration <= 0:
+        return await message.reply("❗ مدت زمان سکوت باید بزرگتر از صفر باشد.")
+    db = await connect_db()
+    async with db.cursor() as cursor:
+        await cursor.execute("""
+        INSERT OR REPLACE INTO silent_mode (chat_id, mute_duration) 
+        VALUES (?, ?)
+        """, (message.chat_id, mute_duration))
+        await db.commit()
+    await message.reply(f">✅ مدت زمان سکوت خودکار به {mute_duration} ثانیه تغییر یافت.")
 
 @bot.on_message(filters.text_contains_any(["نصب", "فعال", "مالک"]))
 async def install(bot, message: Message):
     if await chat_exists(message.chat_id):  
         return False
     await set_owner(message.chat_id, message.sender_id)  
-    await message.reply(f"✅ ربات با موفقیت در گروه {await message.name} نصب شد\n👑 اکنون شما مالک این چت هستید")
+    await message.reply(f"✅ ربات با موفقیت در گروه {await message.name} نصب شد\n👑 اکنون شما [مالک]({message.sender_id}) این چت هستید")
 
 async def check_rules(message: Message, rules: dict):
     violations = []
@@ -1261,7 +1435,29 @@ async def check_rules(message: Message, rules: dict):
     if rules.get("gif") and message.is_gif:violations.append("گیف")
     if rules.get("anti_flood") and message.text:
         if message.text.count(".") >= 40:violations.append("کد هنگی")
+    if violations and await is_silent_mode(message.chat_id):
+        db = await connect_db()
+        async with db.cursor() as cursor:
+            await cursor.execute("SELECT mute_duration FROM silent_mode WHERE chat_id=?", (message.chat_id,))
+            row = await cursor.fetchone()
+            mute_duration = row[0] if row else 60
+        await mute_user_db(message.chat_id, message.sender_id, mute_duration)
+        await message.delete()
+        await message.reply(f"🚫 [کاربر]({message.sender_id}) به دلیل نقض قوانین و روشن بودن حالت سایلنت به مدت 60 ثانیه سکوت شد.")
+        return None
     return violations
+
+@bot.on_message(filters.text_equals("حالت سایلنت روشن"))
+async def enable_silent_mode(bot: Robot, message: Message):
+    if not await is_admin(message.chat_id, message.sender_id): return
+    await set_silent_mode(message.chat_id, True)
+    await message.reply(">🔇 **حالت سایلنت روشن شد**\nاز این به بعد تخلفات به طور خودکار باعث سکوت 60 ثانیه‌ای خواهند شد.")
+
+@bot.on_message(filters.text_equals("حالت سایلنت خاموش"))
+async def disable_silent_mode(bot: Robot, message: Message):
+    if not await is_admin(message.chat_id, message.sender_id): return
+    await set_silent_mode(message.chat_id, False)
+    await message.reply(">🔊 **حالت سایلنت خاموش شد**\nتخلفات دیگر باعث سکوت خودکار نخواهند شد.")
 
 @bot.on_message()
 async def strict_and_rules_handler(bot: Robot, message: Message):
