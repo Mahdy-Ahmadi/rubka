@@ -3,13 +3,13 @@ import time,random,asyncio,re,aiohttp,asyncio,jdatetime,aiosqlite,json,os
 from rubka.exceptions import *
 
 Token = "Token"
-Data_name = "bot-database.db"
+Data_name = "bot_database.db"
 db_lock = asyncio.Lock()
 
 bot = Robot(Token,max_msg_age=2000,safeSendMode=True)
 
 
-#======= بخش مالکان در پیوی ربات ==========
+#======= بخش مالکان در پیوی ==========
 chat_keypad = (
     ChatKeypadBuilder()
     .row(
@@ -18,7 +18,7 @@ chat_keypad = (
     )
     .build()
 )
-@bot.on_message(filters.is_command.start & filters.is_private)
+@bot.on_message(filters.is_command.start and filters.is_private)
 async def start_handler(bot: Robot, message: Message):
     await message.reply(
         text="👋 خوش آمدید!",
@@ -143,8 +143,12 @@ async def create_tables():
         """)
         await db.commit()
         await cursor.execute("""
-                    ALTER TABLE silent_mode ADD COLUMN mute_duration INTEGER DEFAULT 60;
-                """)
+        CREATE TABLE IF NOT EXISTS silent_mode (
+            chat_id TEXT PRIMARY KEY,
+            is_enabled INTEGER DEFAULT 0,
+            mute_duration INTEGER DEFAULT 60
+        )
+        """)
         await db.commit()
         await cursor.execute("""
         CREATE TABLE IF NOT EXISTS warning_threshold (
@@ -1455,7 +1459,7 @@ async def enable_silent_mode(bot: Robot, message: Message):
 
 @bot.on_message(filters.text_equals("حالت سایلنت خاموش"))
 async def disable_silent_mode(bot: Robot, message: Message):
-    if not await is_admin(message.chat_id, message.sender_id): return
+    if not await is_admin(message.chat_id, message.sender_id):return
     await set_silent_mode(message.chat_id, False)
     await message.reply(">🔊 **حالت سایلنت خاموش شد**\nتخلفات دیگر باعث سکوت خودکار نخواهند شد.")
 
