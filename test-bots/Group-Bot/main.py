@@ -3,7 +3,7 @@ import time,random,asyncio,re,aiohttp,asyncio,jdatetime,aiosqlite,json,os
 from rubka.exceptions import *
 
 Token = "token"
-Data_name = "bot_database.db"
+Data_name = "bot-database.db"
 db_lock = asyncio.Lock()
 
 bot = Robot(Token,max_msg_age=20000000,safeSendMode=True,enable_offset=True)
