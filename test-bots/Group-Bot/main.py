@@ -2,12 +2,11 @@ from rubka import Robot, Message, filters,ChatKeypadBuilder
 import time,random,asyncio,re,aiohttp,asyncio,jdatetime,aiosqlite,json,os
 from rubka.exceptions import *
 
-Token = "Token"
+Token = "token"
 Data_name = "bot_database.db"
 db_lock = asyncio.Lock()
 
-bot = Robot(Token,max_msg_age=2000,safeSendMode=True)
-
+bot = Robot(Token,max_msg_age=20000000,safeSendMode=True,enable_offset=True)
 
 #======= بخش مالکان در پیوی ==========
 chat_keypad = (
@@ -304,6 +303,46 @@ async def get_user_profile(chat_id, user_id):
         "muted": "دائمی" if mute else "خیر",
         "rank": rank
     }
+async def fetch_danestani():
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api-free.ir/api/danes.php") as response:
+                response.raise_for_status()
+                data = await response.text()
+                return data
+    except Exception as e:
+        print(f"Error fetching danestani: {e}")
+        raise
+async def fetch_poll():
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.rubka.ir/poll", timeout=10) as response:
+            return await response.json()
+
+async def fetch_joke():
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api-free.ir/api/jok.php") as response:
+                response.raise_for_status()  # بررسی وضعیت درخواست
+                data = await response.json()  # دریافت داده‌ها به صورت JSON
+                if data.get("status"):
+                    return data["result"]
+                else:
+                    raise ValueError("جوک دریافت نشد.")
+    except Exception as e:
+        print(f"Error fetching joke: {e}")
+        raise
+async def fetch_fal():
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api-free.ir/api/fal") as response:
+                response.raise_for_status()
+                data = await response.json()
+                if "result" not in data:
+                    raise ValueError("داده‌های فال حافظ ناقص هستند.")
+                return data["result"]
+    except Exception as e:
+        print(f"Error fetching fal data: {e}")
+        raise
 async def backup_group(chat_id):
     db = await connect_db()
     data = {}
@@ -827,6 +866,7 @@ async def ban_user(bot: Robot, message: Message):
         message_id=message.reply_to_message_id
     )
     user_id = data.get("sender_id")
+    if await is_admin(message.chat_id, user_id):return await message.reply(f">حذف کردن ادمین ها فقط با دستور مالک گروه انجام میشود")
     if not user_id:return
     try:
         if await bot.ban_member_chat(chat_id=message.chat_id, user_id=user_id):
@@ -920,6 +960,7 @@ async def add_warning(bot: Robot, message: Message):
         message_id=message.reply_to_message_id
     )
     user_id = data.get("sender_id")
+    if await is_admin(message.chat_id, user_id):return await message.reply(f"اخطار دادن به ادمین ها فقط با دستور مالک گروه انجام میشود")
     if not user_id:return
     db = await connect_db()
     async with db.cursor() as cursor:
@@ -1259,25 +1300,27 @@ async def user_messages(bot, message: Message):
     await save_member(message.chat_id, message.sender_id)
     await increase_message_count(message.chat_id, message.sender_id)
     db = await connect_db()
-    async with db.cursor() as cursor:
-        await cursor.execute("SELECT mute_time, mute_duration, is_permanent FROM mutes WHERE chat_id=? AND user_id=?", 
-                             (message.chat_id, message.sender_id))
-        mute_info = await cursor.fetchone()
-    if mute_info:
-        mute_time, mute_duration, is_permanent = mute_info
-        if is_permanent == 1:
-            await message.delete()
-            return
-        remaining_time = mute_time + mute_duration - int(time.time())
-        if remaining_time > 0:
-            await message.delete()
-        else:
-            async with connect_db() as db:
-                cursor = await db.cursor()
-                await cursor.execute("DELETE FROM mutes WHERE chat_id=? AND user_id=?", (message.chat_id, message.sender_id))
+    try:
+        async with db.cursor() as cursor: 
+            await cursor.execute("SELECT mute_time, mute_duration, is_permanent FROM mutes WHERE chat_id=? AND user_id=?", 
+                                 (message.chat_id, message.sender_id))
+            mute_info = await cursor.fetchone()
+        if mute_info:
+            mute_time, mute_duration, is_permanent = mute_info
+            if is_permanent == 1:
+                await message.delete()
+                return
+            remaining_time = mute_time + mute_duration - int(time.time())
+            if remaining_time > 0:
+                await message.delete()
+            else:
+                await db.execute("DELETE FROM mutes WHERE chat_id=? AND user_id=?", (message.chat_id, message.sender_id))
                 await db.commit()
 
-@bot.on_message(filters.text_contains("تگ"))
+    finally:
+        await db.close()
+
+@bot.on_message(filters.text_startswith("تگ"))
 async def tag_users(bot: Robot, message: Message):
     if not await is_admin(message.chat_id, message.sender_id):return False
     members = await get_members(message.chat_id)
@@ -1297,7 +1340,7 @@ async def tag_users(bot: Robot, message: Message):
         text = " , ".join(f"[{random.choice(TAG_TEXTS)}]({uid})" for uid in group)
         await bot.send_message(
             chat_id=message.chat_id,
-            text=text,
+            text=f"${text}$",
             reply_to_message_id=message.message_id
         )
 
@@ -1326,7 +1369,7 @@ async def mute_user(bot: Robot, message: Message):
             return await message.reply("❗ لطفا مدت زمان سکوت یا 'دائمی' را وارد کنید.")
         info = await bot.get_message(message.chat_id, message.reply_to_message_id)
         target_id = info["sender_id"]
-        print(target_id)
+        if await is_admin(message.chat_id, target_id):return await message.reply(f"سکوت کردن ادمین ها فقط با دستور مالک گروه انجام میشود")
         db = await connect_db()
         cursor = await db.cursor()
         await cursor.execute(
@@ -1524,6 +1567,58 @@ async def admin_commands(bot: Robot, message: Message):
         if text in [fa, f"قفل {fa}"]:
             await toggle_rule(message.chat_id, k)  
             return await message.reply(f"✔️ وضعیت **{fa}** تغییر کرد")
+        
+#========سرگرمی های ربات ==============
+
+@bot.on_message(filters.text_contains_any(["چالش","کوییز","Quiz"]))
+async def handle_challenge(bot: Robot, message: Message):
+    sent = await message.reply("درحال دریافت اطلاعات چالش لطفا منتظر باشید...")
+    try:
+        poll_data = await fetch_poll()
+        await bot.send_poll(
+            chat_id=message.chat_id,
+            question=poll_data["question"],
+            options=poll_data["options"],
+            type="Quiz",
+            hint=poll_data.get("hint", ""),
+            correct_option_index=poll_data.get("correct_index", 0),
+            reply_to_message_id=message.message_id
+        )
+        await sent.delete()
+    except Exception as e:
+        await sent.delete()
+        await message.reply(f"Error {e}")
+@bot.on_message(filters.text_equals("دانستنی"))
+async def handle_danestani(bot: Robot, message: Message):
+    sent = await message.reply("در حال دریافت دانستنی، لطفاً منتظر بمانید...")
+    try:
+        dane_data = await fetch_danestani()
+        await sent.edit(dane_data)
+    except Exception as e:
+        await message.reply(f"متاسفانه خطایی در دریافت دانستنی پیش آمد: {e}")
+@bot.on_message(filters.text_equals("فال"))
+async def handle_fal(bot: Robot, message: Message):
+    sent = await message.reply("درحال دریافت فال حافظ لطفا منتظر باشید...")
+    try:
+        fal_image_url = await fetch_fal()
+        await bot.send_image(
+            chat_id=message.chat_id,
+            path=fal_image_url,
+            text="این فال حافظ شماست.",
+            reply_to_message_id=message.message_id
+        )
+        await sent.delete()
+    except Exception as e:
+        await sent.delete()
+        await message.reply(f"متاسفانه خطایی در دریافت فال حافظ پیش آمد: {e}")
+@bot.on_message(filters.text_equals("جوک"))
+async def handle_joke(bot: Robot, message: Message):
+    sent = await message.reply("در حال دریافت جوک، لطفاً منتظر بمانید...")
+    try:
+        joke_data = await fetch_joke()
+        await sent.edit(joke_data)
+    except Exception as e:
+        await message.reply(f"متاسفانه خطایی در دریافت جوک پیش آمد: {e}")
 
 async def main():
     await create_tables()
