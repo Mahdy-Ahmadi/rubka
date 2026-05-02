@@ -1,0 +1,58 @@
+Rubka Exclusive License (REL) v1.0
+Copyright © 2025-2026 Mahdi Ahmadi (Mahdy-Ahmadi) – rubka.ir
+
+This license is a legal agreement between you (the user, developer, or distributor) and Mahdi Ahmadi (the rights holder).
+
+By using, copying, modifying, or distributing this software, you accept all of the following terms and conditions.
+
+---
+
+1. PERMITTED USE
+
+You are permitted to:
+
+✅ Use the source code of this project in any personal, commercial, governmental, or open-source project (as a library, code snippet, or inspiration).
+✅ Modify, improve, fix bugs, or combine the code with other projects.
+✅ Use this library in bots, servers, applications, and online services.
+
+2. STRICT PROHIBITIONS
+
+The following actions are strictly forbidden under any circumstances:
+
+❌ Redistributing the whole library, a substantial portion of it, or any modified version under any name other than "rubka" (including any spelling variations such as rubka-lib, rubka-py, rubka2, rubka-core, or any name containing "rubka").
+❌ Removing, hiding, or renaming "Mahdi Ahmadi", "rubka.ir", or "GitHub.com/Mahdy-Ahmadi" from any files, documentation, comments, or any other part of the software.
+❌ Releasing a "new library" where more than 50% of its code is directly taken from this project, even if function or variable names are changed.
+❌ Claiming ownership, authorship, or original development of this library by any other person or organization.
+❌ Using the name "rubka" for any other project, library, service, domain, or brand without written permission from Mahdi Ahmadi.
+
+3. DISTRIBUTION OF MODIFICATIONS (If you choose to publish)
+
+If you make changes to the code and wish to publicly distribute those changes:
+
+- You must submit your changes as a Pull Request to the original repository (github.com/Mahdy-Ahmadi/rubka).
+- Otherwise, you are only permitted to keep the changes privately (within your own project).
+- Any public fork on GitHub must retain the name "rubka" and proper credit to the original source.
+
+4. GOVERNING LAW AND LEGAL ENFORCEMENT
+
+This license is governed by the laws of the Islamic Republic of Iran (in particular, the Law for the Protection of the Rights of Authors, Composers, and Artists).
+
+Any violation of Sections 2 or 3 constitutes a clear infringement of copyright and will:
+
+- Result in legal prosecution within the judicial authorities of Iran.
+- Entitle the rights holder to claim damages, seek seizure of the infringing project, and publish a judgment of violation.
+- Make commercial use of unauthorized versions a clear case of "unlawful profit".
+
+5. AUTOMATIC TERMINATION
+
+If you violate any of the above terms, this license is automatically terminated, and you no longer have permission to use the software.
+
+6. NO WARRANTY
+
+This software is provided "AS IS", without any warranty of any kind. The rights holder shall not be liable for any direct or indirect damages arising from the use of this library.
+
+---
+
+Version: 1.0
+Release Date: May 2, 2026
+Official Source: github.com/Mahdy-Ahmadi/rubka
