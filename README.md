@@ -1,3 +1,4 @@
+[![License: Rubka Exclusive](https://img.shields.io/badge/License-Rubka%20Exclusive-red)](https://github.com/Mahdy-Ahmadi/rubka/blob/main/LICENSE)
 # 📚 Rubka Bot Python Library Documentation
 # نمونه تنظیم وب‌هوک (Webhook) در کتابخونه rubka
 
