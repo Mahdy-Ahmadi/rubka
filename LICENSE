@@ -11,19 +11,19 @@ By using, copying, modifying, or distributing this software, you accept all of t
 
 You are permitted to:
 
-✅ Use the source code of this project in any personal, commercial, governmental, or open-source project (as a library, code snippet, or inspiration).
-✅ Modify, improve, fix bugs, or combine the code with other projects.
-✅ Use this library in bots, servers, applications, and online services.
+Use the source code of this project in any personal, commercial, governmental, or open-source project (as a library, code snippet, or inspiration).
+Modify, improve, fix bugs, or combine the code with other projects.
+Use this library in bots, servers, applications, and online services.
 
 2. STRICT PROHIBITIONS
 
 The following actions are strictly forbidden under any circumstances:
 
-❌ Redistributing the whole library, a substantial portion of it, or any modified version under any name other than "rubka" (including any spelling variations such as rubka-lib, rubka-py, rubka2, rubka-core, or any name containing "rubka").
-❌ Removing, hiding, or renaming "Mahdi Ahmadi", "rubka.ir", or "GitHub.com/Mahdy-Ahmadi" from any files, documentation, comments, or any other part of the software.
-❌ Releasing a "new library" where more than 50% of its code is directly taken from this project, even if function or variable names are changed.
-❌ Claiming ownership, authorship, or original development of this library by any other person or organization.
-❌ Using the name "rubka" for any other project, library, service, domain, or brand without written permission from Mahdi Ahmadi.
+Redistributing the whole library, a substantial portion of it, or any modified version under any name other than "rubka" (including any spelling variations such as rubka-lib, rubka-py, rubka2, rubka-core, or any name containing "rubka").
+Removing, hiding, or renaming "Mahdi Ahmadi", "rubka.ir", or "GitHub.com/Mahdy-Ahmadi" from any files, documentation, comments, or any other part of the software.
+Releasing a "new library" where more than 50% of its code is directly taken from this project, even if function or variable names are changed.
+Claiming ownership, authorship, or original development of this library by any other person or organization.
+Using the name "rubka" for any other project, library, service, domain, or brand without written permission from Mahdi Ahmadi.
 
 3. DISTRIBUTION OF MODIFICATIONS (If you choose to publish)
 
