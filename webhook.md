@@ -9,54 +9,121 @@
 <?php
 $count = 20;
 header("Content-Type: application/json");
-
 $file_name = "message.json";
 $file_path = __DIR__ . "/" . $file_name;
-
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
 $host = $_SERVER['HTTP_HOST'];
 $script_dir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
 $file_url = $protocol . "://" . $host . $script_dir . "/" . $file_name;
-$input = file_get_contents("php://input");
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($input)) {
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
-        "status" => "no data received",
+        "status" => "Run webhook.",
+        "message" => "requests are allowed",
         "url" => $file_url
     ], JSON_PRETTY_PRINT);
     exit;
 }
+
+$input = file_get_contents("php://input");
+if (empty($input)) {
+    http_response_code(400);
+    echo json_encode([
+        "status" => "error",
+        "message" => "No data received",
+        "url" => $file_url
+    ], JSON_PRETTY_PRINT);
+    exit;
+}
+
 $data = json_decode($input, true);
 if ($data === null) {
     http_response_code(400);
     echo json_encode([
         "error" => "Invalid JSON",
+        "message" => json_last_error_msg(),
         "url" => $file_url
     ], JSON_PRETTY_PRINT);
     exit;
 }
 
-$messages = [];
-if (file_exists($file_path)) {
-    $content = @file_get_contents($file_path);
-    $messages = json_decode($content, true);
-    if (!is_array($messages)) {
-        $messages = [];
-    }
+if (isset($data['inline_message'])) {
+    $data['inline_message']['time'] = time();
 }
-$messages[] = [
+
+$new_entry = [
     "received_at" => date("Y-m-d H:i:s"),
     "data" => $data
 ];
-if (count($messages) > $count) {
-    $messages = array_slice($messages, -$count);
+
+$success = false;
+$max_retries = 5;
+$retry_delay = 500;
+
+for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
+    $fp = fopen($file_path, 'c+');
+    
+    if (!$fp) {
+        usleep($retry_delay * $attempt);
+        continue;
+    }
+    if (flock($fp, LOCK_EX)) {
+        $current_content = '';
+        $file_size = filesize($file_path);
+        if ($file_size > 0) {
+            $current_content = fread($fp, $file_size);
+        }
+        
+        $messages = [];
+        if (!empty($current_content)) {
+            $messages = json_decode($current_content, true);
+            if (!is_array($messages)) {
+                $messages = [];
+            }
+        }
+        $messages[] = $new_entry;
+        if (count($messages) > $count) {
+            $messages = array_slice($messages, -$count);
+        }
+        ftruncate($fp, 0);
+        rewind($fp);
+        $json_output = json_encode($messages, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $write_result = fwrite($fp, $json_output);
+        
+        if ($write_result !== false) {
+            $success = true;
+        }
+        
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        
+        if ($success) {
+            break;
+        }
+    } else {
+        fclose($fp);
+    }
+    
+    usleep($retry_delay * $attempt);
 }
-file_put_contents($file_path, json_encode($messages, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
+
+if (!$success) {
+    http_response_code(503);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Failed to write data after multiple attempts",
+        "url" => $file_url
+    ], JSON_PRETTY_PRINT);
+    exit;
+}
+
 echo json_encode([
     "status" => "ok",
-    "received_at" => date("Y-m-d H:i:s"),
+    "received_at" => $new_entry["received_at"],
     "received_data" => $data,
     "url" => $file_url
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+?>
 ```
 
 ---
