@@ -24,7 +24,7 @@ If `importlib.metadata` is not available, it installs `importlib-metadata` autom
 ## 🚀 Getting Started
 
 ```python
-from rubka import Robot,context import Message
+from rubka import Robot,Message
 
 bot = Robot(token="YOUR_TOKEN_HERE")
 
