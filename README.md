@@ -8,16 +8,12 @@
 [![Author](https://img.shields.io/badge/Author-Mahdi%20Ahmadi-blue)](https://github.com/Mahdy-Ahmadi)
 [![GitHub](https://img.shields.io/badge/GitHub-Mahdy--Ahmadi/rubka-blue?logo=github)](https://github.com/Mahdy-Ahmadi/rubka)
 
-...
-
-## 👥 Authors
+## Authors
 
 - **Mahdi Ahmadi** (`Mahdy-Ahmadi`) - *Creator & Maintainer*
   - GitHub: [@Mahdy-Ahmadi](https://github.com/Mahdy-Ahmadi)
   - Email: [mahdiahmadi.1208@gmail.com](mailto:mahdiahmadi.1208@gmail.com)
   - PyPI: [MahdiAhmadi](https://pypi.org/user/MahdiAhmadi)
-
-...
 
 [![License: Rubka Exclusive](https://img.shields.io/badge/License-Rubka%20Exclusive-red)](https://github.com/Mahdy-Ahmadi/rubka/blob/main/LICENSE)
 # 📚 Rubka Bot Python Library Documentation
