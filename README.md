@@ -1,5 +1,12 @@
+# 📚 Rubka Bot Python Library
+
+[![Author](https://img.shields.io/badge/Author-Mahdi%20Ahmadi-blue)](https://github.com/Mahdy-Ahmadi)
+[![GitHub](https://img.shields.io/badge/GitHub-Mahdy--Ahmadi/rubka-blue?logo=github)](https://github.com/Mahdy-Ahmadi/rubka)
+[![PyPI - Author](https://img.shields.io/badge/PyPI-MahdiAhmadi-blue)](https://pypi.org/user/MahdiAhmadi)
+
 [![License: Rubka Exclusive](https://img.shields.io/badge/License-Rubka%20Exclusive-red)](https://github.com/Mahdy-Ahmadi/rubka/blob/main/LICENSE)
 # 📚 Rubka Bot Python Library Documentation
+
 # نمونه تنظیم وب‌هوک (Webhook) در کتابخونه rubka
 
 برای مشاهده مستندات کامل و آخرین نسخه راهنما، لطفاً به آدرس زیر مراجعه کنید:  
