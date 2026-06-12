@@ -24,14 +24,13 @@ If `importlib.metadata` is not available, it installs `importlib-metadata` autom
 ## 🚀 Getting Started
 
 ```python
-from rubka import Robot
-from rubka.context import Message
+from rubka import Robot,context import Message
 
 bot = Robot(token="YOUR_TOKEN_HERE")
 
 @bot.on_message(commands=["start"])
-def start(bot: Robot, message: Message):
-    message.reply("سلام! خوش آمدید!")
+async def start(bot: Robot, message: Message):
+    await message.reply("سلام! خوش آمدید!")
 
 bot.run()
 ```
@@ -44,8 +43,8 @@ You can handle incoming text messages using `@bot.on_message()`:
 
 ```python
 @bot.on_message(commands=["hello"])
-def greet(bot: Robot, message: Message):
-    message.reply("سلام کاربر عزیز 👋")
+async def greet(bot: Robot, message: Message):
+    await message.reply("سلام کاربر عزیز 👋")
 ```
 
 You can also add filters.
