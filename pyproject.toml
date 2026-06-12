@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rubka"
+version = "8.1.6"
+description = "rubka: The official Python SDK for the Rubika Bot API, provided by Rubika. This library offers a robust and feature-rich interface for developers to build advanced bots on the Rubika platform. Features include comprehensive support for messaging, media, inline keyboards, group/channel management, user authentication, subscription systems, and real-time event handling. Built for scalability and ease of use."
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "Rubka Exclusive License (REL) v1.0"}
+
+authors = [
+    {name = "Mahdi Ahmadi", email = "mahdiahmadi.1208@gmail.com"},
+]
+maintainers = [
+    {name = "Mahdi Ahmadi", email = "mahdiahmadi.1208@gmail.com"},
+]
+
+dependencies = [
+    "requests",
+    "websocket-client",
+    "pycryptodome",
+    "aiohttp",
+    "httpx",
+    "tqdm",
+    "mutagen",
+    "markdownify",
+    "filetype",
+    "aiofiles",
+    "deep-translator"
+]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+    "Topic :: Communications :: Chat",
+    "Topic :: Software Development :: Libraries",
+    "Natural Language :: Persian",
+]
+
+keywords = ["rubika", "bot", "api", "library", "chat", "messaging", "rubpy", "pyrubi", "rubigram", "rubika_bot", "rubika_api", "fast_rub"]
+
+[project.urls]
+Homepage = "http://rubka.ir"
+Repository = "https://github.com/Mahdy-Ahmadi/Rubka"
+Documentation = "https://github.com/Mahdy-Ahmadi/rubka/blob/main/README.md"
+"Bug Tracker" = "https://t.me/Dev_servers"
+"Source Code" = "https://github.com/Mahdy-Ahmadi/Rubka"
+Discord_Telegram = "https://rubika.ir/rubka_info"
+
+[project.scripts]
+rubka = "rubka.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["rubka*"]
