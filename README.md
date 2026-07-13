@@ -478,10 +478,9 @@ def callback_handler(bot: Robot, message: Message):
 ## 📤 مثال کاربردی کامل
 
 ```python
-from rubka import Robot
+from rubka import Robot,Message
 from rubka.keypad import ChatKeypadBuilder
-from rubka.button import InlineBuilder
-from rubka.context import Message
+from rubka.button import InlineBuilde
 
 chat_keypad = ChatKeypadBuilder().row(
     ChatKeypadBuilder().button(id="btn_female", text="زن"),
@@ -678,8 +677,7 @@ def countdown_edit(chat_id, message_id, duration_sec):
 ---
 ## نمونه کد ساخته شده
 ```python
-from rubka import Robot
-from rubka.context import Message
+from rubka import Robot,Message
 from rubka.keypad import ChatKeypadBuilder
 from rubka.jobs import Job
 from datetime import datetime, timedelta
@@ -832,8 +830,7 @@ bot.run()
 ##نمونه کد ادیت تایم و کرون جاب با اینلاین کیبورد 
 
 ```python
-from rubka import Robot
-from rubka.context import Message
+from rubka import Robot,Message
 from rubka.keypad import ChatKeypadBuilder
 from rubka.jobs import Job
 from datetime import datetime, timedelta
@@ -967,8 +964,7 @@ bot.run()
 ### کد بهینه‌شده:
 
 ```python
-from rubka import Robot
-from rubka.context import Message
+from rubka import Robot,Message
 
 bot = Robot(token="your_token")
 CHANNEL_GUID = "c0xABCDEF..."  # GUID کانال هدف
